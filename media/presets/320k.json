@@ -1,0 +1,11 @@
+{
+  "name": "320k",
+  "bitrate": "320k",
+  "codec": "aac",
+  "sample_rate": 48000,
+  "channels": 2,
+  "hls_time": 4,
+  "hls_playlist_type": "vod",
+  "profile": "aac_low",
+  "description": "Ultra studio quality master"
+}

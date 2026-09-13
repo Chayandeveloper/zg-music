@@ -1,0 +1,44 @@
+# Root Git Ignore
+node_modules/
+.env
+.env.*
+!.env.example
+!*.env.example
+*.env
+*.env.*
+.DS_Store
+Thumbs.db
+
+# Laravel
+backend/vendor/
+backend/storage/*.key
+backend/storage/logs/*.log
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/storage/app/public/hls/*
+backend/storage/app/public/masters/*
+backend/public/storage
+backend/public/hot
+backend/.phpunit.result.cache
+
+# Mobile & Expo
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/.metro-health-check*
+mobile/npm-debug.*
+mobile/yarn-debug.*
+mobile/yarn-error.*
+
+# Admin Vite
+admin/dist/
+admin/node_modules/
+
+# Local database
+*.sqlite
+*.sqlite-journal
+
+# Media scratch
+media/scratch/
+media/output/

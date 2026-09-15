@@ -97,10 +97,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose, onSucces
       const res = await sendOtp(cleaned, mode === 'LOGIN' ? 'login' : 'register');
       setStep('OTP');
       setCountdown(60);
+      const isTestNumber = ['9999999999', '9876543210', '9876543211', '8888888888'].includes(cleaned);
       if (res?.debug_otp) {
         setDebugOtpHint(res.debug_otp);
+        setOtp(res.debug_otp);
+      } else if (isTestNumber) {
+        setDebugOtpHint('123456');
+        setOtp('123456');
       }
     } catch (err: any) {
+      const isTestNumber = ['9999999999', '9876543210', '9876543211', '8888888888'].includes(cleaned);
+      if (isTestNumber) {
+        setStep('OTP');
+        setCountdown(60);
+        setDebugOtpHint('123456');
+        setOtp('123456');
+        return;
+      }
       setErrorMessage(err.message || 'Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
@@ -287,6 +300,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose, onSucces
                       <ArrowRight size={16} color="#000" />
                     </View>
                   )}
+                </TouchableOpacity>
+
+                {/* Google Play Reviewer / Demo Fill */}
+                <TouchableOpacity
+                  onPress={() => {
+                    setPhone('9999999999');
+                    if (mode === 'REGISTER' && !name) setName('Google Play Reviewer');
+                    if (errorMessage) setErrorMessage('');
+                  }}
+                  style={styles.demoReviewerChip}
+                  activeOpacity={0.7}
+                >
+                  <Sparkles size={13} color={THEME.colors.primary} />
+                  <Text style={styles.demoReviewerText}>
+                    Google Play Test Login: <Text style={{ fontWeight: '800' }}>9999999999 (OTP: 123456)</Text>
+                  </Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -735,5 +764,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#000',
+  },
+  demoReviewerChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(234, 179, 8, 0.08)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(234, 179, 8, 0.25)',
+  },
+  demoReviewerText: {
+    fontSize: 11,
+    color: THEME.colors.primary,
+    fontWeight: '600',
   },
 });

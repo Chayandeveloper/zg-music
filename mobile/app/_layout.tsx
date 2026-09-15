@@ -7,6 +7,7 @@ import { MiniPlayer } from '../components/MiniPlayer';
 import { FullPlayerModal } from '../components/FullPlayerModal';
 import { AuthModal } from '../components/AuthModal';
 import { AddToPlaylistModal } from '../components/AddToPlaylistModal';
+import { Audio } from 'expo-av';
 import { useAuthStore } from '../store/useAuthStore';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { THEME } from '../constants/theme';
@@ -17,7 +18,13 @@ export default function RootLayout() {
 
   useEffect(() => {
     checkAuth();
+    Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: true,
+      shouldDuckAndroid: true,
+    }).catch(() => {});
   }, []);
+
 
   return (
     <SafeAreaProvider style={styles.container}>

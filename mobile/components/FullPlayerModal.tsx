@@ -1,14 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   Image,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   Modal,
   StyleSheet,
   SafeAreaView,
   ScrollView,
+  Platform,
+  GestureResponderEvent,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { SmoothScrubber } from './SmoothScrubber';
 import {
   ChevronDown,
   Play,
@@ -24,6 +29,8 @@ import {
   FileText,
   BookOpen,
   Sliders,
+  RotateCcw,
+  RotateCw,
   X,
 } from 'lucide-react-native';
 import { usePlayerStore, PlaybackQuality } from '../store/usePlayerStore';
@@ -45,6 +52,8 @@ export const FullPlayerModal: React.FC = () => {
     queueIndex,
     togglePlayPause,
     seekTo,
+    seekForward10,
+    seekBackward10,
     playNext,
     playPrevious,
     toggleShuffle,
@@ -61,21 +70,37 @@ export const FullPlayerModal: React.FC = () => {
   const [showStory, setShowStory] = useState(false);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
 
+  // Native Double-Tap to Seek (10s back / forward)
+  const lastTapRef = useRef<{ time: number; x: number }>({ time: 0, x: 0 });
+  const [doubleTapFeedback, setDoubleTapFeedback] = useState<'backward' | 'forward' | null>(null);
+
+  const handleArtworkTap = (e: GestureResponderEvent) => {
+    const now = Date.now();
+    const touchX = e.nativeEvent.locationX;
+    if (now - lastTapRef.current.time < 350) {
+      if (touchX < 150) {
+        seekBackward10();
+        setDoubleTapFeedback('backward');
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        setTimeout(() => setDoubleTapFeedback(null), 650);
+      } else {
+        seekForward10();
+        setDoubleTapFeedback('forward');
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        setTimeout(() => setDoubleTapFeedback(null), 650);
+      }
+      lastTapRef.current = { time: 0, x: 0 };
+    } else {
+      lastTapRef.current = { time: now, x: touchX };
+    }
+  };
+
   if (!currentSong) return null;
 
   const formatTime = (secs: number) => {
     const mins = Math.floor(secs / 60);
     const rem = Math.floor(secs % 60);
     return `${mins}:${rem < 10 ? '0' : ''}${rem}`;
-  };
-
-  const progressPercent = duration > 0 ? (position / duration) * 100 : 0;
-
-  const handleSeekTouch = (e: any) => {
-    const { locationX } = e.nativeEvent;
-    // Assume bar width ~ 320
-    const percent = Math.max(0, Math.min(1, locationX / 320));
-    seekTo(Math.floor(percent * duration));
   };
 
   const qualities: { id: PlaybackQuality; label: string; desc: string }[] = [
@@ -144,17 +169,32 @@ export const FullPlayerModal: React.FC = () => {
         )}
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Main Large Artwork */}
-          <View style={styles.artworkContainer}>
-            <Image
-              source={{
-                uri:
-                  currentSong.artwork_url ||
-                  'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80',
-              }}
-              style={styles.largeArtwork}
-            />
-          </View>
+          {/* Main Large Artwork with Native Double-Tap to Seek */}
+          <TouchableWithoutFeedback onPress={handleArtworkTap}>
+            <View style={styles.artworkContainer}>
+              <Image
+                source={{
+                  uri:
+                    currentSong.artwork_url ||
+                    'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80',
+                }}
+                style={styles.largeArtwork}
+              />
+              {/* Double-tap animated feedback badges */}
+              {doubleTapFeedback === 'backward' && (
+                <View style={[styles.doubleTapOverlay, styles.doubleTapLeft]}>
+                  <RotateCcw size={36} color="#FFFFFF" />
+                  <Text style={styles.doubleTapText}>-10s</Text>
+                </View>
+              )}
+              {doubleTapFeedback === 'forward' && (
+                <View style={[styles.doubleTapOverlay, styles.doubleTapRight]}>
+                  <RotateCw size={36} color="#FFFFFF" />
+                  <Text style={styles.doubleTapText}>+10s</Text>
+                </View>
+              )}
+            </View>
+          </TouchableWithoutFeedback>
 
           {/* Song Info & Actions */}
           <View style={styles.infoRow}>
@@ -188,36 +228,40 @@ export const FullPlayerModal: React.FC = () => {
             </View>
           </View>
 
-          {/* Seeker / Progress Bar */}
-          <View style={styles.progressContainer}>
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={handleSeekTouch}
-              style={styles.progressBarBg}
-            >
-              <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
-              <View style={[styles.progressKnob, { left: `${progressPercent}%` }]} />
-            </TouchableOpacity>
-            <View style={styles.timeRow}>
-              <Text style={styles.timeText}>{formatTime(position)}</Text>
-              <Text style={styles.timeText}>{formatTime(duration)}</Text>
-            </View>
-          </View>
+          {/* Native High-Performance YouTube-Style Seeker Bar */}
+          <SmoothScrubber
+            position={position}
+            duration={duration}
+            onSeek={seekTo}
+            formatTime={formatTime}
+          />
 
-          {/* Main Player Controls */}
+          {/* Main Player Controls (with YouTube-style 10s skip buttons) */}
           <View style={styles.controlsRow}>
-            <TouchableOpacity onPress={toggleShuffle} style={styles.controlIcon}>
+            <TouchableOpacity onPress={toggleShuffle} style={styles.controlIcon} activeOpacity={0.7}>
               <Shuffle
-                size={22}
+                size={20}
                 color={shuffle ? THEME.colors.primary : THEME.colors.textMuted}
               />
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={playPrevious} style={styles.controlIcon}>
-              <SkipBack size={28} color={THEME.colors.textPrimary} />
+            <TouchableOpacity onPress={playPrevious} style={styles.controlIcon} activeOpacity={0.7}>
+              <SkipBack size={26} color={THEME.colors.textPrimary} />
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={togglePlayPause} style={styles.mainPlayButton}>
+            <TouchableOpacity
+              onPress={() => {
+                seekBackward10();
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+              }}
+              style={styles.seekStepBtn}
+              activeOpacity={0.7}
+            >
+              <RotateCcw size={22} color={THEME.colors.textSecondary} />
+              <Text style={styles.seekStepText}>10</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={togglePlayPause} style={styles.mainPlayButton} activeOpacity={0.85}>
               {isPlaying ? (
                 <Pause size={30} color={THEME.colors.black} fill={THEME.colors.black} />
               ) : (
@@ -225,16 +269,28 @@ export const FullPlayerModal: React.FC = () => {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={playNext} style={styles.controlIcon}>
-              <SkipForward size={28} color={THEME.colors.textPrimary} />
+            <TouchableOpacity
+              onPress={() => {
+                seekForward10();
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+              }}
+              style={styles.seekStepBtn}
+              activeOpacity={0.7}
+            >
+              <RotateCw size={22} color={THEME.colors.textSecondary} />
+              <Text style={styles.seekStepText}>10</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={toggleRepeat} style={styles.controlIcon}>
+            <TouchableOpacity onPress={playNext} style={styles.controlIcon} activeOpacity={0.7}>
+              <SkipForward size={26} color={THEME.colors.textPrimary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={toggleRepeat} style={styles.controlIcon} activeOpacity={0.7}>
               {repeatMode === 'one' ? (
-                <Repeat1 size={22} color={THEME.colors.primary} />
+                <Repeat1 size={20} color={THEME.colors.primary} />
               ) : (
                 <Repeat
-                  size={22}
+                  size={20}
                   color={repeatMode === 'all' ? THEME.colors.primary : THEME.colors.textMuted}
                 />
               )}
@@ -398,39 +454,47 @@ const styles = StyleSheet.create({
   playerActionBtn: {
     padding: 8,
   },
-  progressContainer: {
-    width: '100%',
-    marginTop: 24,
-  },
-  progressBarBg: {
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 2,
-    position: 'relative',
+  seekStepBtn: {
+    alignItems: 'center',
     justifyContent: 'center',
+    padding: 6,
+    position: 'relative',
+    width: 38,
+    height: 38,
   },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: THEME.colors.primary,
-    borderRadius: 2,
-  },
-  progressKnob: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: THEME.colors.primary,
+  seekStepText: {
     position: 'absolute',
-    marginLeft: -6,
+    fontSize: 8,
+    fontWeight: '900',
+    color: THEME.colors.textSecondary,
+    textAlign: 'center',
   },
-  timeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
+  doubleTapOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: '50%',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 16,
   },
-  timeText: {
+  doubleTapLeft: {
+    left: 0,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  doubleTapRight: {
+    right: 0,
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+  },
+  doubleTapText: {
+    color: '#FFFFFF',
     fontSize: 12,
-    color: THEME.colors.textMuted,
-    fontWeight: '600',
+    fontWeight: '800',
+    marginTop: 6,
+    letterSpacing: 0.5,
   },
   controlsRow: {
     flexDirection: 'row',
@@ -569,3 +633,4 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
+

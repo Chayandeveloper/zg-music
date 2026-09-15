@@ -23,4 +23,11 @@ return [
         'api_key'         => env('BSNL_SMS_API_KEY'),
     ],
 
+    'youtube_music' => [
+        'url' => env('YOUTUBE_MUSIC_SERVICE_URL', 'http://127.0.0.1:8001'),
+        'timeout' => (int) env('YOUTUBE_MUSIC_SERVICE_TIMEOUT', 4),
+        'cache_ttl' => (int) env('YOUTUBE_MUSIC_CACHE_TTL', 3600),
+        'enabled' => env('YOUTUBE_MUSIC_ENABLED', true),
+    ],
+
 ];

@@ -85,6 +85,34 @@ export class MobileApi {
     return this.request<any>(`/search?q=${encodeURIComponent(query)}`);
   }
 
+  // External Music Discovery (ytmusicapi via Laravel API)
+  public static async searchExternal(query: string, filter?: string) {
+    const filterParam = filter ? `&filter=${encodeURIComponent(filter)}` : '';
+    return this.request<any>(`/external/search?q=${encodeURIComponent(query)}${filterParam}`);
+  }
+
+  public static async getExternalSong(id: string) {
+    return this.request<any>(`/external/songs/${encodeURIComponent(id)}`);
+  }
+
+  public static async getExternalArtist(id: string) {
+    return this.request<any>(`/external/artists/${encodeURIComponent(id)}`);
+  }
+
+  public static async getExternalAlbum(id: string) {
+    return this.request<any>(`/external/albums/${encodeURIComponent(id)}`);
+  }
+
+  public static async getExternalPlaylist(id: string) {
+    return this.request<any>(`/external/playlists/${encodeURIComponent(id)}`);
+  }
+
+  public static async getExternalStream(videoId: string) {
+    return this.request<{ status: string; data: { videoId: string; streamUrl: string; title?: string; duration?: number; ext?: string; thumbnail?: string } }>(
+      `/external/stream/${encodeURIComponent(videoId)}`
+    );
+  }
+
   public static async getSongs(page: number = 1) {
     return this.request<any>(`/songs?page=${page}`);
   }
@@ -102,12 +130,12 @@ export class MobileApi {
     return this.request<any>(`/artists/${id}`);
   }
 
-  public static async getAlbumDetail(id: number) {
+  public static async getAlbumDetail(id: number | string) {
     return this.request<any>(`/albums/${id}`);
   }
 
   // Social & Library
-  public static async toggleLike(songId: number) {
+  public static async toggleLike(songId: number | string) {
     return this.request<any>(`/songs/${songId}/like`, { method: 'POST' });
   }
 
@@ -141,14 +169,14 @@ export class MobileApi {
     });
   }
 
-  public static async addSongToPlaylist(playlistId: number, songId: number) {
+  public static async addSongToPlaylist(playlistId: number, songId: number | string) {
     return this.request<any>(`/playlists/${playlistId}/songs`, {
       method: 'POST',
       body: JSON.stringify({ song_id: songId }),
     });
   }
 
-  public static async removeSongFromPlaylist(playlistId: number, songId: number) {
+  public static async removeSongFromPlaylist(playlistId: number, songId: number | string) {
     return this.request<any>(`/playlists/${playlistId}/songs/${songId}`, {
       method: 'DELETE',
     });

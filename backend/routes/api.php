@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\PlayerController;
 use App\Http\Controllers\Api\V1\LibraryController;
 use App\Http\Controllers\Api\V1\ArtistStageController;
 use App\Http\Controllers\Api\V1\AdminController;
+use App\Http\Controllers\Api\V1\ExternalMusicController;
 
 Route::prefix('v1')->group(function () {
     // API V1 Root
@@ -63,6 +64,16 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/artists', [CatalogController::class, 'artists']);
     Route::get('/artists/{id}', [CatalogController::class, 'artistDetail']);
+
+    // External Music Discovery (ytmusicapi Python microservice)
+    Route::prefix('external')->group(function () {
+        Route::get('/search', [ExternalMusicController::class, 'search']);
+        Route::get('/songs/{id}', [ExternalMusicController::class, 'songDetail']);
+        Route::get('/artists/{id}', [ExternalMusicController::class, 'artistDetail']);
+        Route::get('/albums/{id}', [ExternalMusicController::class, 'albumDetail']);
+        Route::get('/playlists/{id}', [ExternalMusicController::class, 'playlistDetail']);
+        Route::get('/stream/{id}', [ExternalMusicController::class, 'stream']);
+    });
 
     // Player & Stream Events
     Route::post('/player/track-event', [PlayerController::class, 'trackEvent']);

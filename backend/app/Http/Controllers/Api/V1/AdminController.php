@@ -178,6 +178,18 @@ class AdminController extends Controller
             'admin_feedback' => $validated['notes'] ?? null,
         ]);
 
+        // Synchronize song publishing status with release moderation status
+        $songIds = $release->releaseSongs()->pluck('song_id')->filter()->all();
+        if (!empty($songIds)) {
+            $songStatus = match ($newStatus) {
+                'PUBLISHED', 'APPROVED' => 'PUBLISHED',
+                'REJECTED'              => 'REJECTED',
+                'TAKEN_DOWN'            => 'TAKEN_DOWN',
+                default                 => 'UNDER_REVIEW',
+            };
+            Song::whereIn('id', $songIds)->update(['status' => $songStatus]);
+        }
+
         // Record review & status audit history
         ReleaseReview::create([
             'release_id' => $release->id,

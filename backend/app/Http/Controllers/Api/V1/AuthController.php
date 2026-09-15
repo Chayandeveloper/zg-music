@@ -14,6 +14,9 @@ use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
+    public const TEST_PHONES = ['9999999999', '9876543210', '9876543211', '8888888888'];
+    public const TEST_OTP = '123456';
+
     /**
      * Send OTP via BSNL SMS Gateway
      */
@@ -30,6 +33,38 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'Please enter a valid 10-digit Indian mobile number.',
             ], 422);
+        }
+
+        $isTestAccount = in_array($phone, self::TEST_PHONES);
+
+        // Google Play Reviewer / Test Account handling
+        if ($isTestAccount) {
+            User::firstOrCreate(
+                ['phone' => $phone],
+                [
+                    'name' => 'Google Play Reviewer',
+                    'role' => 'LISTENER',
+                    'phone_verified_at' => now(),
+                ]
+            );
+
+            PhoneOtp::updateOrCreate(
+                ['phone' => $phone],
+                [
+                    'otp'        => self::TEST_OTP,
+                    'expires_at' => now()->addDays(365),
+                    'ip_address' => $request->ip(),
+                    'attempts'   => 0,
+                    'verified_at'=> null,
+                ]
+            );
+
+            return response()->json([
+                'message'    => 'Verification OTP sent to +91 ' . $phone,
+                'phone'      => $phone,
+                'expires_in' => 86400,
+                'debug_otp'  => self::TEST_OTP,
+            ]);
         }
 
         $type = $validated['type'] ?? null;
@@ -61,8 +96,7 @@ class AuthController extends Controller
         }
 
         // Generate 6-digit OTP
-        $isDemo = in_array($phone, ['9876543210', '9876543211', '9999999999']);
-        $otp = $isDemo ? '123456' : (string) random_int(100000, 999999);
+        $otp = (string) random_int(100000, 999999);
 
         // Store OTP in database
         PhoneOtp::create([
@@ -73,18 +107,15 @@ class AuthController extends Controller
         ]);
 
         // Dispatch via BSNL SMS Gateway
-        $sent = true;
-        if (!$isDemo) {
-            /** @var BsnlSmsService $smsService */
-            $smsService = app(BsnlSmsService::class);
-            $sent = $smsService->sendOtp($phone, $otp);
-        }
+        /** @var BsnlSmsService $smsService */
+        $smsService = app(BsnlSmsService::class);
+        $smsService->sendOtp($phone, $otp);
 
         return response()->json([
             'message'    => 'Verification OTP sent to +91 ' . $phone,
             'phone'      => $phone,
             'expires_in' => 600,
-            'debug_otp'  => (config('app.debug') || $isDemo) ? $otp : null,
+            'debug_otp'  => config('app.debug') ? $otp : null,
         ]);
     }
 
@@ -101,6 +132,34 @@ class AuthController extends Controller
 
         $phone = BsnlSmsService::formatPhoneNumber($validated['phone']);
         $submittedOtp = trim($validated['otp']);
+
+        $isTestAccount = in_array($phone, self::TEST_PHONES);
+
+        // Immediate hardcoded test bypass for Google Play review
+        if ($isTestAccount && $submittedOtp === self::TEST_OTP) {
+            $user = User::firstOrCreate(
+                ['phone' => $phone],
+                [
+                    'name' => 'Google Play Reviewer',
+                    'role' => 'LISTENER',
+                    'phone_verified_at' => now(),
+                ]
+            );
+
+            if (!$user->phone_verified_at) {
+                $user->update(['phone_verified_at' => now()]);
+            }
+
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'data' => [
+                    'user'  => $user->load('artist'),
+                    'token' => $token,
+                ],
+                'message' => 'Authentication successful (Test Account)',
+            ]);
+        }
 
         $record = PhoneOtp::where('phone', $phone)
             ->whereNull('verified_at')

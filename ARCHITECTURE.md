@@ -85,3 +85,42 @@ Per specifications, all payment, wallet, payout, and subscription features are e
 - Models utilize soft status checks (`status = 'PUBLISHED'`) rather than hardcoded tier gates.
 - Database contains no deprecated mock paywalls.
 - Architecture allows plugging in an entitlement provider service without schema refactoring.
+
+---
+
+## 4. External Music Discovery & `ytmusicapi` Integration
+
+### 4.1 Topology
+
+```
+                       ZUBEEN PLAYER
+                            │
+                       Expo Mobile
+                            │
+                       Laravel API
+                            │
+             ┌──────────────┴──────────────┐
+             │                             │
+       INTERNAL MUSIC                EXTERNAL MUSIC
+             │                             │
+       MySQL Metadata                 Laravel API
+             │                             │
+       Object Storage             Python Service
+             │                      (FastAPI)
+          FFmpeg                           │
+             │                         ytmusicapi
+           HLS                             │
+             │                        YouTube Music
+             ▼
+       Global Player
+```
+
+### 4.2 Rules of Engagement
+1. **Mandatory Music API**: `ytmusicapi` is the specific library used for external discovery.
+2. **Dedicated Microservice**: Hosted in `services/youtube-music/` on port `8001` running FastAPI and encapsulated by `YTMusicService`.
+3. **No Direct Client Access**: The Expo client never contacts `ytmusicapi` directly.
+4. **Strict Catalog Separation**:
+   - `source_type = INTERNAL`: Hosted on Object Storage, transcoded via FFmpeg into 4 HLS bitrates (64k, 128k, 192k, 320k), played via Zubeen Player HLS engine.
+   - `source_type = EXTERNAL`: Discovered metadata from YouTube Music (`external_source = 'YOUTUBE_MUSIC'`).
+5. **No Unauthorized Audio Extraction**: YouTube Music audio is never downloaded, extracted, transcoded, or redistributed.
+6. **Graceful Degradation**: If the Python service or YouTube Music is unreachable, internal catalog search and streaming continue functioning normally.

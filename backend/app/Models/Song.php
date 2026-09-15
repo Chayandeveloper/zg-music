@@ -21,6 +21,10 @@ class Song extends Model
         'like_count',
         'track_number',
         'status',
+        'source_type',
+        'external_source',
+        'external_id',
+        'external_url',
     ];
 
     protected $casts = [

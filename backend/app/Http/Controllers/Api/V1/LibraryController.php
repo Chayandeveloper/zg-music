@@ -47,6 +47,7 @@ class LibraryController extends Controller
         $songs = Song::with(['artist', 'album'])
             ->join('likes', 'songs.id', '=', 'likes.song_id')
             ->where('likes.user_id', $user->id)
+            ->where('songs.status', 'PUBLISHED')
             ->orderBy('likes.created_at', 'desc')
             ->select('songs.*')
             ->paginate($request->query('per_page', 20));
@@ -107,7 +108,11 @@ class LibraryController extends Controller
 
     public function showPlaylist(Request $request, int $id): JsonResponse
     {
-        $playlist = Playlist::with(['songs.artist', 'songs.album'])
+        $playlist = Playlist::with([
+            'songs' => function ($q) {
+                $q->where('status', 'PUBLISHED')->with(['artist', 'album']);
+            }
+        ])
             ->withCount('songs')
             ->where('user_id', $request->user()->id)
             ->findOrFail($id);
@@ -182,6 +187,9 @@ class LibraryController extends Controller
     public function playHistory(Request $request): JsonResponse
     {
         $history = $request->user()->playHistories()
+            ->whereHas('song', function ($q) {
+                $q->where('status', 'PUBLISHED');
+            })
             ->with(['song.artist', 'song.album'])
             ->latest('played_at')
             ->paginate($request->query('per_page', 30));

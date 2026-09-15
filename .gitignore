@@ -42,3 +42,13 @@ admin/node_modules/
 # Media scratch
 media/scratch/
 media/output/
+
+# Python & YouTube Music Service
+services/youtube-music/.venv/
+services/youtube-music/__pycache__/
+services/youtube-music/.pytest_cache/
+services/youtube-music/*.pyc
+*.pyc
+__pycache__/
+oauth.json
+browser.json

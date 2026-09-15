@@ -76,15 +76,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   verifyOtp: async (data: { phone: string; otp: string; name?: string }) => {
-    const res = await MobileApi.verifyOtp(data);
-    const token = res.data?.token;
-    const user = res.data?.user;
-    await MobileApi.setToken(token);
-    const isArtist = user?.role === 'ARTIST' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
-    set({ user, isAuthenticated: true, isArtist, isAuthModalOpen: false, authModalMessage: null });
+    try {
+      const res = await MobileApi.verifyOtp(data);
+      const token = res.data?.token;
+      const user = res.data?.user;
+      await MobileApi.setToken(token);
+      const isArtist = user?.role === 'ARTIST' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+      set({ user, isAuthenticated: true, isArtist, isAuthModalOpen: false, authModalMessage: null });
 
-    // Notify listeners (e.g. resume pending playback)
-    onLoginCallback?.();
+      // Notify listeners (e.g. resume pending playback)
+      onLoginCallback?.();
+    } catch (err: any) {
+      // Offline fallback for Google Play Reviewer / Demo testing
+      if (['9999999999', '9876543210', '9876543211', '8888888888'].includes(data.phone) && data.otp === '123456') {
+        const demoUser: UserProfile = {
+          id: 99999,
+          name: 'Google Play Reviewer',
+          phone: data.phone,
+          role: 'LISTENER',
+        };
+        await MobileApi.setToken('demo_google_play_token');
+        set({ user: demoUser, isAuthenticated: true, isArtist: false, isAuthModalOpen: false, authModalMessage: null });
+        onLoginCallback?.();
+        return;
+      }
+      throw err;
+    }
   },
 
   login: async (credentials) => {

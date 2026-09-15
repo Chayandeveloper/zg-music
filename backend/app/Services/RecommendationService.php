@@ -38,12 +38,19 @@ class RecommendationService
             ->where('status', 'PUBLISHED')
             ->whereNotIn('id', $likedSongIds);
 
-        if (!empty($followedArtistIds)) {
-            $query->orWhereIn('artist_id', $followedArtistIds);
-        }
-
-        if (!empty($preferredGenres)) {
-            $query->orWhereIn('genre', $preferredGenres);
+        if (!empty($followedArtistIds) || !empty($preferredGenres)) {
+            $query->where(function ($q) use ($followedArtistIds, $preferredGenres) {
+                if (!empty($followedArtistIds)) {
+                    $q->whereIn('artist_id', $followedArtistIds);
+                }
+                if (!empty($preferredGenres)) {
+                    if (!empty($followedArtistIds)) {
+                        $q->orWhereIn('genre', $preferredGenres);
+                    } else {
+                        $q->whereIn('genre', $preferredGenres);
+                    }
+                }
+            });
         }
 
         $candidates = $query->orderBy('play_count', 'desc')

@@ -230,7 +230,7 @@ class ArtistStageController extends Controller
                 'genre' => $release->genre,
                 'language' => $release->language,
                 'stream_url' => '/storage/' . $trackData['master_path'],
-                'status' => 'PUBLISHED', // Will be live upon release approval
+                'status' => 'UNDER_REVIEW', // Remains under review until approved/published by admin
             ]);
 
             if (!empty($validated['lyrics'])) {

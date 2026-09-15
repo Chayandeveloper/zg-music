@@ -100,60 +100,73 @@ export default function SearchScreen() {
             </View>
           )}
 
-          {results && (
-            <View>
-              {/* Songs Results */}
-              {results.songs?.length > 0 && (
-                <View style={styles.groupSection}>
-                  <View style={styles.groupHeader}>
-                    <Music size={16} color={THEME.colors.primary} />
-                    <Text style={styles.groupTitle}>Songs</Text>
-                  </View>
-                  {results.songs.map((song: any) => (
-                    <SongListItem key={song.id} song={song} />
-                  ))}
-                </View>
-              )}
+          {results && (() => {
+            const songs = results.songs || [];
+            const artists = results.artists || [];
+            const albums = results.albums || [];
 
-              {/* Artists Results */}
-              {results.artists?.length > 0 && (
-                <View style={styles.groupSection}>
-                  <View style={styles.groupHeader}>
-                    <User size={16} color={THEME.colors.accent} />
-                    <Text style={styles.groupTitle}>Artists</Text>
-                  </View>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {results.artists.map((artist: any) => (
-                      <ArtistCard key={artist.id} artist={artist} />
+            const hasAnyResults = songs.length > 0 || artists.length > 0 || albums.length > 0;
+
+            if (!hasAnyResults) {
+              return (
+                <View style={styles.centerBox}>
+                  <Text style={styles.emptyText}>No results matching "{query}"</Text>
+                </View>
+              );
+            }
+
+            return (
+              <View>
+                {/* 1. Unified Songs Results */}
+                {songs.length > 0 && (
+                  <View style={styles.groupSection}>
+                    <View style={styles.groupHeader}>
+                      <Music size={16} color={THEME.colors.primary} />
+                      <Text style={styles.groupTitle}>Songs</Text>
+                    </View>
+                    {songs.map((song: any, idx: number) => (
+                      <SongListItem
+                        key={`song-${song.id || idx}`}
+                        song={song}
+                        index={idx}
+                        queue={songs}
+                      />
                     ))}
-                  </ScrollView>
-                </View>
-              )}
-
-              {/* Albums Results */}
-              {results.albums?.length > 0 && (
-                <View style={styles.groupSection}>
-                  <View style={styles.groupHeader}>
-                    <Disc size={16} color={THEME.colors.success} />
-                    <Text style={styles.groupTitle}>Albums</Text>
-                  </View>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {results.albums.map((album: any) => (
-                      <AlbumCard key={album.id} album={album} />
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
-
-              {results.songs?.length === 0 &&
-                results.artists?.length === 0 &&
-                results.albums?.length === 0 && (
-                  <View style={styles.centerBox}>
-                    <Text style={styles.emptyText}>No results matching "{query}"</Text>
                   </View>
                 )}
-            </View>
-          )}
+
+                {/* 2. Unified Artists Results */}
+                {artists.length > 0 && (
+                  <View style={styles.groupSection}>
+                    <View style={styles.groupHeader}>
+                      <User size={16} color={THEME.colors.accent} />
+                      <Text style={styles.groupTitle}>Artists</Text>
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      {artists.map((artist: any, idx: number) => (
+                        <ArtistCard key={`artist-${artist.id || idx}`} artist={artist} />
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                {/* 3. Unified Albums Results */}
+                {albums.length > 0 && (
+                  <View style={styles.groupSection}>
+                    <View style={styles.groupHeader}>
+                      <Disc size={16} color={THEME.colors.success} />
+                      <Text style={styles.groupTitle}>Albums</Text>
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      {albums.map((album: any, idx: number) => (
+                        <AlbumCard key={`album-${album.id || idx}`} album={album} />
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
+            );
+          })()}
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -258,5 +271,43 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: THEME.colors.textPrimary,
+  },
+  externalSection: {
+    marginTop: 8,
+    marginBottom: 24,
+    backgroundColor: 'rgba(255, 0, 0, 0.04)',
+    borderColor: 'rgba(255, 0, 0, 0.18)',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+  },
+  externalHeaderBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  externalSectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: THEME.colors.textPrimary,
+  },
+  externalSectionNotice: {
+    fontSize: 11,
+    color: THEME.colors.textMuted,
+    marginBottom: 10,
+  },
+  ytBadge: {
+    backgroundColor: 'rgba(255, 0, 0, 0.2)',
+    borderColor: '#FF4D4D',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  ytBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF4D4D',
   },
 });

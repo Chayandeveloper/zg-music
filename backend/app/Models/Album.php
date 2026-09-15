@@ -18,6 +18,9 @@ class Album extends Model
         'release_date',
         'songs_count',
         'status',
+        'source_type',
+        'external_source',
+        'external_id',
     ];
 
     protected $casts = [

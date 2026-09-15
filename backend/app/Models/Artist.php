@@ -22,6 +22,9 @@ class Artist extends Model
         'monthly_listeners',
         'followers_count',
         'is_rising',
+        'source_type',
+        'external_source',
+        'external_id',
     ];
 
     protected $casts = [

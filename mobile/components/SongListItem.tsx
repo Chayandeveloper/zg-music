@@ -17,7 +17,7 @@ interface SongListItemProps {
   index?: number;
   playlistContext?: SongItem[];
   queue?: SongItem[];
-  onLikeChanged?: (songId: number, isLiked: boolean) => void;
+  onLikeChanged?: (songId: number | string, isLiked: boolean) => void;
   onLikeChange?: () => void;
 }
 
@@ -30,20 +30,19 @@ export const SongListItem: React.FC<SongListItemProps> = ({
   onLikeChange,
 }) => {
   const router = useRouter();
-  const { currentSong, isPlaying, playSong, toggleLikeSong, openAddToPlaylist } = usePlayerStore();
+  const { currentSong, isPlaying, playSong, toggleLikeSong, isSongLiked, openAddToPlaylist } = usePlayerStore();
   const isCurrent = currentSong?.id === song.id;
-  const isLiked = isCurrent ? !!currentSong.is_liked : !!song.is_liked;
+  const likedInStore = isSongLiked(song.id) || (song.external_id ? isSongLiked(song.external_id) : false);
+  const isLiked = isCurrent
+    ? currentSong.is_liked !== undefined
+      ? !!currentSong.is_liked
+      : likedInStore
+    : likedInStore || !!song.is_liked;
 
-  const [localLiked, setLocalLiked] = useState(isLiked);
   const [showOptions, setShowOptions] = useState(false);
 
   const handleToggleLike = async () => {
-    const nextState = !localLiked;
-    setLocalLiked(nextState);
-    const success = await toggleLikeSong(song.id);
-    if (success !== nextState) {
-      setLocalLiked(success);
-    }
+    const success = await toggleLikeSong(song);
     onLikeChanged?.(song.id, success);
     onLikeChange?.();
   };
@@ -97,8 +96,8 @@ export const SongListItem: React.FC<SongListItemProps> = ({
         >
           <Heart
             size={18}
-            color={localLiked ? THEME.colors.primary : THEME.colors.textMuted}
-            fill={localLiked ? THEME.colors.primary : 'transparent'}
+            color={isLiked ? THEME.colors.primary : THEME.colors.textMuted}
+            fill={isLiked ? THEME.colors.primary : 'transparent'}
           />
         </TouchableOpacity>
 
@@ -168,12 +167,12 @@ export const SongListItem: React.FC<SongListItemProps> = ({
                 <View style={styles.optionIconBox}>
                   <Heart
                     size={20}
-                    color={localLiked ? THEME.colors.primary : THEME.colors.textPrimary}
-                    fill={localLiked ? THEME.colors.primary : 'transparent'}
+                    color={isLiked ? THEME.colors.primary : THEME.colors.textPrimary}
+                    fill={isLiked ? THEME.colors.primary : 'transparent'}
                   />
                 </View>
                 <Text style={styles.optionText}>
-                  {localLiked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
+                  {isLiked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
                 </Text>
               </TouchableOpacity>
 
@@ -325,5 +324,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: THEME.colors.textPrimary,
+  },
+  externalBadge: {
+    backgroundColor: 'rgba(255, 0, 0, 0.15)',
+    borderColor: 'rgba(255, 0, 0, 0.4)',
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  externalBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FF4D4D',
+    letterSpacing: 0.2,
   },
 });

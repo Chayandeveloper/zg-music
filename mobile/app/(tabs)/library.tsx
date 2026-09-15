@@ -20,11 +20,14 @@ import { MobileApi } from '../../services/api';
 import { SongListItem } from '../../components/SongListItem';
 import { THEME } from '../../constants/theme';
 import { useAuthStore } from '../../store/useAuthStore';
+import { usePlayerStore } from '../../store/usePlayerStore';
 import { HeaderAuthButton } from '../../components/HeaderAuthButton';
 
 export default function LibraryScreen() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
+  const storeLikedSongs = usePlayerStore((state) => state.likedSongs);
+  const storeRecentlyPlayed = usePlayerStore((state) => state.recentlyPlayed);
   const [activeTab, setActiveTab] = useState<'liked' | 'playlists' | 'history'>('liked');
   const [likedSongs, setLikedSongs] = useState<any[]>([]);
   const [playlists, setPlaylists] = useState<any[]>([]);
@@ -43,28 +46,66 @@ export default function LibraryScreen() {
   };
 
   const loadData = useCallback(async () => {
-    if (!isAuthenticated) {
-      setLikedSongs([]);
-      setPlaylists([]);
-      setHistory([]);
-      return;
-    }
-
     try {
       if (activeTab === 'liked') {
-        const res = await MobileApi.getLikedSongs();
-        setLikedSongs(extractItems(res));
+        let items = usePlayerStore.getState().likedSongs;
+        if (isAuthenticated) {
+          try {
+            const res = await MobileApi.getLikedSongs();
+            const serverItems = extractItems(res);
+            if (serverItems.length > 0) {
+              await usePlayerStore.getState().syncServerLikedSongs(serverItems);
+              items = usePlayerStore.getState().likedSongs;
+            }
+          } catch (e) {
+            console.warn('Failed to load server liked songs:', e);
+          }
+        }
+        setLikedSongs(items);
       } else if (activeTab === 'playlists') {
+        if (!isAuthenticated) {
+          setPlaylists([]);
+          return;
+        }
         const res = await MobileApi.getPlaylists();
         setPlaylists(extractItems(res));
       } else if (activeTab === 'history') {
-        const res = await MobileApi.getHistory();
-        setHistory(extractItems(res));
+        const localRecents = usePlayerStore.getState().recentlyPlayed;
+        if (!isAuthenticated) {
+          setHistory(localRecents);
+          return;
+        }
+        try {
+          const res = await MobileApi.getHistory();
+          const serverHistory = extractItems(res);
+          const merged = [...localRecents];
+          for (const s of serverHistory) {
+            const songObj = s?.song || s;
+            if (songObj && !merged.some((m) => String(m.id) === String(songObj.id))) {
+              merged.push(songObj);
+            }
+          }
+          setHistory(merged);
+        } catch {
+          setHistory(localRecents);
+        }
       }
     } catch (err) {
       console.error('Failed to load library data:', err);
     }
   }, [activeTab, isAuthenticated]);
+
+  useEffect(() => {
+    if (activeTab === 'liked') {
+      setLikedSongs(storeLikedSongs);
+    }
+  }, [storeLikedSongs, activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'history' && !isAuthenticated) {
+      setHistory(storeRecentlyPlayed);
+    }
+  }, [storeRecentlyPlayed, activeTab, isAuthenticated]);
 
   // Automatically refresh when screen comes into focus
   useFocusEffect(

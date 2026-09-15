@@ -27,10 +27,19 @@ export default function AlbumDetailScreen() {
   useEffect(() => {
     const fetchAlbum = async () => {
       try {
-        const res = await MobileApi.getAlbumDetail(Number(id));
-        setData(res.data);
+        let res: any = null;
+        try {
+          res = await MobileApi.getAlbumDetail(id);
+        } catch {
+          // If internal fails, fallback to external album
+          res = await MobileApi.getExternalAlbum(id);
+        }
+
+        if (res?.data) {
+          setData(res.data);
+        }
       } catch (err) {
-        console.error(err);
+        console.error('Failed to load album:', err);
       } finally {
         setLoading(false);
       }
@@ -48,8 +57,38 @@ export default function AlbumDetailScreen() {
     );
   }
 
-  const album = data.album;
-  const songs = album.songs || [];
+  const rawAlbum = data.album || data;
+  const rawSongs = rawAlbum.songs || rawAlbum.tracks || [];
+
+  const album = {
+    title: rawAlbum.title || 'Zubeen Songs',
+    artist: typeof rawAlbum.artist === 'string' ? { name: rawAlbum.artist } : (rawAlbum.artist || { name: 'Zubeen Garg' }),
+    cover_url:
+      rawAlbum.cover_url ||
+      rawAlbum.artwork_url ||
+      'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?auto=format&fit=crop&w=400&q=80',
+    release_year: rawAlbum.release_year || rawAlbum.year || 2024,
+    genre: rawAlbum.genre || 'Assamese Classic',
+  };
+
+  const songs = rawSongs.map((s: any, idx: number) => ({
+    id: s.id || s.external_id || `album-song-${idx}`,
+    title: s.title,
+    artist: typeof s.artist === 'string' ? { name: s.artist } : (s.artist || { name: 'Zubeen Garg' }),
+    artwork_url: s.artwork_url || album.cover_url,
+    duration_seconds: s.duration_seconds || 240,
+    duration_formatted: s.duration_formatted,
+    source_type: s.source_type || 'EXTERNAL',
+    external_source: s.external_source || 'YOUTUBE_MUSIC',
+    external_id: s.external_id || s.videoId || s.id,
+    external_url: s.external_url,
+  }));
+
+  const handleShuffle = () => {
+    if (songs.length === 0) return;
+    const shuffled = [...songs].sort(() => Math.random() - 0.5);
+    playSong(shuffled[0], shuffled);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -64,11 +103,7 @@ export default function AlbumDetailScreen() {
         {/* Album Header */}
         <View style={styles.header}>
           <Image
-            source={{
-              uri:
-                album.cover_url ||
-                'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?auto=format&fit=crop&w=400&q=80',
-            }}
+            source={{ uri: album.cover_url }}
             style={styles.cover}
           />
           <Text style={styles.title}>{album.title}</Text>
@@ -89,7 +124,7 @@ export default function AlbumDetailScreen() {
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity style={styles.iconBtn}>
+            <TouchableOpacity style={styles.iconBtn} onPress={handleShuffle}>
               <Shuffle size={20} color={THEME.colors.textPrimary} />
             </TouchableOpacity>
 

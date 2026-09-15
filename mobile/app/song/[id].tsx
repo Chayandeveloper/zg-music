@@ -22,7 +22,7 @@ import { usePlayerStore } from '../../store/usePlayerStore';
 export default function SongDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { playSong, currentSong, toggleLikeSong, openAddToPlaylist } = usePlayerStore();
+  const { playSong, currentSong, toggleLikeSong, isSongLiked, openAddToPlaylist } = usePlayerStore();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showLyrics, setShowLyrics] = useState(false);
@@ -34,7 +34,10 @@ export default function SongDetailScreen() {
       try {
         const res = await MobileApi.getSongDetail(Number(id));
         setData(res.data);
-        setIsLiked(!!res.data?.song?.is_liked);
+        const songObj = res.data?.song;
+        if (songObj) {
+          setIsLiked(isSongLiked(songObj.id) || !!songObj.is_liked);
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -44,21 +47,21 @@ export default function SongDetailScreen() {
     if (id) fetchSong();
   }, [id]);
 
-  // Sync like state if currently playing song is this song
+  // Sync like state if currently playing song is this song or from store
   useEffect(() => {
-    if (currentSong && data?.song && currentSong.id === data.song.id && currentSong.is_liked !== undefined) {
-      setIsLiked(currentSong.is_liked);
+    if (data?.song) {
+      if (currentSong && currentSong.id === data.song.id && currentSong.is_liked !== undefined) {
+        setIsLiked(currentSong.is_liked);
+      } else {
+        setIsLiked(isSongLiked(data.song.id) || !!data.song.is_liked);
+      }
     }
-  }, [currentSong, data]);
+  }, [currentSong, data, isSongLiked]);
 
   const handleToggleLike = async () => {
     if (!data?.song) return;
-    const nextLiked = !isLiked;
-    setIsLiked(nextLiked);
-    const success = await toggleLikeSong(data.song.id);
-    if (success !== nextLiked) {
-      setIsLiked(success);
-    }
+    const success = await toggleLikeSong(data.song);
+    setIsLiked(success);
   };
 
   if (loading || !data) {

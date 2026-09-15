@@ -35,7 +35,7 @@ export const SongCard: React.FC<SongCardProps> = ({ song, playlistContext }) => 
         {song.title}
       </Text>
       <Text style={styles.artist} numberOfLines={1}>
-        {song.artist?.name || 'Artist'}
+        {typeof song.artist === 'string' ? song.artist : (song.artist?.name || 'Artist')}
       </Text>
     </TouchableOpacity>
   );

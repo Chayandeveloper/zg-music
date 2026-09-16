@@ -33,7 +33,6 @@ class StreamService:
 
         url = f"https://www.youtube.com/watch?v={video_id}"
         ydl_opts = {
-            "format": "bestaudio/best/18",
             "quiet": True,
             "no_warnings": True,
             "nocheckcertificate": True,
@@ -50,11 +49,16 @@ class StreamService:
             },
         }
 
-
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
                 stream_url = info.get("url")
+                if not stream_url:
+                    for f in info.get("formats", []):
+                        if f.get("url"):
+                            stream_url = f.get("url")
+                            break
+
                 if not stream_url:
                     logger.warning(f"No direct stream URL extracted for {video_id}")
                     return None

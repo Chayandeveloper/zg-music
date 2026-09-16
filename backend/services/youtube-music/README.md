@@ -16,7 +16,7 @@ This service provides external music discovery, search, and metadata querying vi
 
 ### Local Installation
 ```bash
-cd services/youtube-music
+cd backend/services/youtube-music
 python -m venv .venv
 # On Windows PowerShell:
 .venv\Scripts\Activate.ps1

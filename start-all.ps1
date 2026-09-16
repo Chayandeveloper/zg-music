@@ -7,7 +7,7 @@ Write-Host "===================================================" -ForegroundColo
 
 # 1. YouTube Music Service
 Write-Host "Starting YouTube Music Microservice (Port 8002)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$rootDir\services\youtube-music'; Write-Host 'YouTube Music Service (8002)' -ForegroundColor Green; uvicorn app.main:app --host 0.0.0.0 --port 8002"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$rootDir\backend\services\youtube-music'; Write-Host 'YouTube Music Service (8002)' -ForegroundColor Green; uvicorn app.main:app --host 0.0.0.0 --port 8002"
 
 # 2. Laravel Backend
 Write-Host "Starting Laravel Backend (Port 8001)..." -ForegroundColor Yellow

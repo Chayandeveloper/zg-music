@@ -9,11 +9,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python requirements
-COPY services/youtube-music/requirements.txt .
+COPY backend/services/youtube-music/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy service code
-COPY services/youtube-music/ .
+COPY backend/services/youtube-music/ .
 
 EXPOSE 8001
 

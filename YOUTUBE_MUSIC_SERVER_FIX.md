@@ -80,7 +80,7 @@ services/youtube-music/*.pyc
 ```
 - Only ignore temporary virtual environment directories (`.venv/`) and Python cache files (`__pycache__/`, `*.pyc`).
 - They **do NOT** ignore the `services/` directory or `requirements.txt`.
-- `services/youtube-music/requirements.txt` is fully tracked in GitHub on `origin/main`.
+- `backend/services/youtube-music/requirements.txt` is fully tracked in GitHub on `origin/main`.
 
 ---
 
@@ -130,7 +130,7 @@ rm -rf temp_zg
 
 ### Step 3: Set Up Python Virtual Environment and Dependencies
 ```bash
-cd /var/www/fillosoft.com/jubeefy/services/youtube-music
+cd /var/www/fillosoft.com/jubeefy/backend/services/youtube-music
 
 # Verify requirements.txt is present
 ls -la requirements.txt
@@ -163,9 +163,9 @@ After=network.target
 [Service]
 User=www-data
 Group=www-data
-WorkingDirectory=/var/www/fillosoft.com/jubeefy/services/youtube-music
-Environment="PATH=/var/www/fillosoft.com/jubeefy/services/youtube-music/.venv/bin"
-ExecStart=/var/www/fillosoft.com/jubeefy/services/youtube-music/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8002 --workers 2
+WorkingDirectory=/var/www/fillosoft.com/jubeefy/backend/services/youtube-music
+Environment="PATH=/var/www/fillosoft.com/jubeefy/backend/services/youtube-music/.venv/bin"
+ExecStart=/var/www/fillosoft.com/jubeefy/backend/services/youtube-music/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8002 --workers 2
 
 Restart=always
 RestartSec=5

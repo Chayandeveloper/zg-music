@@ -44,6 +44,10 @@ media/scratch/
 media/output/
 
 # Python & YouTube Music Service
+backend/services/youtube-music/.venv/
+backend/services/youtube-music/__pycache__/
+backend/services/youtube-music/.pytest_cache/
+backend/services/youtube-music/*.pyc
 services/youtube-music/.venv/
 services/youtube-music/__pycache__/
 services/youtube-music/.pytest_cache/

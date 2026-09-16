@@ -13,10 +13,10 @@ sudo apt install -y python3 python3-pip python3-venv ffmpeg
 ---
 
 ### Step 2: Setup Python Virtual Environment
-Navigate to the `services/youtube-music` folder on your server:
+Navigate to the `backend/services/youtube-music` folder on your server:
 
 ```bash
-cd /var/www/zubeen-player/services/youtube-music
+cd /var/www/zubeen-player/backend/services/youtube-music
 
 # Create virtual environment
 python3 -m venv .venv
@@ -46,9 +46,9 @@ After=network.target
 [Service]
 User=www-data
 Group=www-data
-WorkingDirectory=/var/www/zubeen-player/services/youtube-music
-Environment="PATH=/var/www/zubeen-player/services/youtube-music/.venv/bin"
-ExecStart=/var/www/zubeen-player/services/youtube-music/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8002 --workers 4
+WorkingDirectory=/var/www/zubeen-player/backend/services/youtube-music
+Environment="PATH=/var/www/zubeen-player/backend/services/youtube-music/.venv/bin"
+ExecStart=/var/www/zubeen-player/backend/services/youtube-music/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8002 --workers 4
 
 Restart=always
 RestartSec=5

@@ -117,7 +117,7 @@ Per specifications, all payment, wallet, payout, and subscription features are e
 
 ### 4.2 Rules of Engagement
 1. **Mandatory Music API**: `ytmusicapi` is the specific library used for external discovery.
-2. **Dedicated Microservice**: Hosted in `services/youtube-music/` on port `8001` running FastAPI and encapsulated by `YTMusicService`.
+2. **Dedicated Microservice**: Hosted in `backend/services/youtube-music/` on port `8001` running FastAPI and encapsulated by `YTMusicService`.
 3. **No Direct Client Access**: The Expo client never contacts `ytmusicapi` directly.
 4. **Strict Catalog Separation**:
    - `source_type = INTERNAL`: Hosted on Object Storage, transcoded via FFmpeg into 4 HLS bitrates (64k, 128k, 192k, 320k), played via Zubeen Player HLS engine.

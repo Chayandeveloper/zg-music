@@ -4,7 +4,7 @@ echo   Starting ZUBEEN PLAYER (All Services)
 echo ===================================================
 
 echo Starting YouTube Music Microservice on port 8002...
-start "Zubeen - YouTube Music Service (8002)" cmd /k "cd /d "%~dp0services\youtube-music" && uvicorn app.main:app --host 0.0.0.0 --port 8002"
+start "Zubeen - YouTube Music Service (8002)" cmd /k "cd /d "%~dp0backend\services\youtube-music" && uvicorn app.main:app --host 0.0.0.0 --port 8002"
 
 echo Starting Laravel Backend on port 8001...
 start "Zubeen - Laravel API (8001)" cmd /k "cd /d "%~dp0backend" && php artisan serve --host=0.0.0.0 --port=8001"

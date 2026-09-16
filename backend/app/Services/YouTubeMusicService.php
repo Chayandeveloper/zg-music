@@ -17,8 +17,10 @@ class YouTubeMusicService
     public function __construct()
     {
         $config = config('services.youtube_music', []);
-        $this->baseUrl = rtrim($config['url'] ?? 'http://127.0.0.1:8000', '/');
-        $this->timeout = (int) ($config['timeout'] ?? 4);
+        $rawUrl = (string) ($config['url'] ?? 'http://127.0.0.1:8000');
+        $cleanUrl = preg_replace('/[^\x20-\x7E]/', '', $rawUrl) ?: 'http://127.0.0.1:8002';
+        $this->baseUrl = rtrim(trim($cleanUrl), '/');
+        $this->timeout = (int) ($config['timeout'] ?? 6);
         $this->cacheTtl = (int) ($config['cache_ttl'] ?? 3600);
         $this->enabled = (bool) ($config['enabled'] ?? true);
     }

@@ -12,18 +12,33 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://fillosoft.com/jubeefy/api/v1",
+        "EXPO_PUBLIC_STORAGE_BASE_URL": "https://fillosoft.com/jubeefy/api",
+        "EXPO_PUBLIC_APP_NAME": "Zubeefy"
       }
     },
     "production-apk": {
       "autoIncrement": true,
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://fillosoft.com/jubeefy/api/v1",
+        "EXPO_PUBLIC_STORAGE_BASE_URL": "https://fillosoft.com/jubeefy/api",
+        "EXPO_PUBLIC_APP_NAME": "Zubeefy"
       }
     },
     "production": {
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://fillosoft.com/jubeefy/api/v1",
+        "EXPO_PUBLIC_STORAGE_BASE_URL": "https://fillosoft.com/jubeefy/api",
+        "EXPO_PUBLIC_APP_NAME": "Zubeefy"
       }
     }
   },

@@ -25,9 +25,16 @@ const getHostAddress = () => {
 
 const host = getHostAddress();
 
+const PROD_API_URL = 'https://fillosoft.com/jubeefy/api/v1';
+const PROD_STORAGE_URL = 'https://fillosoft.com/jubeefy/api';
+
 const getApiBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_API_BASE_URL) {
     return process.env.EXPO_PUBLIC_API_BASE_URL;
+  }
+  // Production / Release APK builds default to live server
+  if (typeof __DEV__ !== 'undefined' && !__DEV__) {
+    return PROD_API_URL;
   }
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
     return `http://${window.location.hostname}:8001/api/v1`;
@@ -38,6 +45,10 @@ const getApiBaseUrl = () => {
 const getStorageBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_STORAGE_BASE_URL) {
     return process.env.EXPO_PUBLIC_STORAGE_BASE_URL;
+  }
+  // Production / Release APK builds default to live server
+  if (typeof __DEV__ !== 'undefined' && !__DEV__) {
+    return PROD_STORAGE_URL;
   }
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
     return `http://${window.location.hostname}:8001`;

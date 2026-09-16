@@ -44,7 +44,8 @@ class StreamService:
             "youtube_include_hls_manifest": False,
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["android"]
+                    "player_client": ["android"],
+                    "player_skip": ["webpage", "configs"],
                 }
             },
         }

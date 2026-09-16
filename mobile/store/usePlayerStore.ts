@@ -409,8 +409,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
 
-    const { sound, isPlaying } = get();
-    if (!sound) return;
+    const { sound, isPlaying, currentSong } = get();
+    if (!sound) {
+      if (currentSong) {
+        await get().playSong(currentSong);
+      }
+      return;
+    }
 
     if (isPlaying) {
       await sound.pauseAsync();

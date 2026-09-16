@@ -17,10 +17,41 @@ class YouTubeMusicService
     public function __construct()
     {
         $config = config('services.youtube_music', []);
-        $this->baseUrl = rtrim($config['url'] ?? 'http://127.0.0.1:8001', '/');
+        $this->baseUrl = rtrim($config['url'] ?? 'http://127.0.0.1:8000', '/');
         $this->timeout = (int) ($config['timeout'] ?? 4);
         $this->cacheTtl = (int) ($config['cache_ttl'] ?? 3600);
         $this->enabled = (bool) ($config['enabled'] ?? true);
+    }
+
+    /**
+     * Resolve the active base URL with automatic port fallback (8000 <-> 8002).
+     */
+    public function getBaseUrl(): string
+    {
+        return Cache::remember('ytmusic:active_base_url', 30, function () {
+            $candidates = [$this->baseUrl];
+            if (str_contains($this->baseUrl, ':8002')) {
+                $candidates[] = str_replace(':8002', ':8000', $this->baseUrl);
+            } elseif (str_contains($this->baseUrl, ':8000')) {
+                $candidates[] = str_replace(':8000', ':8002', $this->baseUrl);
+            } else {
+                $candidates[] = 'http://127.0.0.1:8000';
+                $candidates[] = 'http://127.0.0.1:8002';
+            }
+
+            foreach (array_unique($candidates) as $url) {
+                try {
+                    $res = Http::timeout(1)->get("{$url}/health");
+                    if ($res->successful() && ($res->json('status') === 'healthy' || $res->json('status') === 'online')) {
+                        return $url;
+                    }
+                } catch (\Throwable $e) {
+                    continue;
+                }
+            }
+
+            return $this->baseUrl;
+        });
     }
 
     /**
@@ -34,7 +65,7 @@ class YouTubeMusicService
 
         return Cache::remember('ytmusic:is_healthy', 30, function () {
             try {
-                $response = Http::timeout(2)->get("{$this->baseUrl}/health");
+                $response = Http::timeout(2)->get("{$this->getBaseUrl()}/health");
                 return $response->successful() && ($response->json('status') === 'healthy');
             } catch (Exception $e) {
                 Log::debug("YouTube Music service health check failed: " . $e->getMessage());
@@ -65,7 +96,7 @@ class YouTubeMusicService
                 $params['filter'] = $filter;
             }
 
-            $response = Http::timeout($this->timeout)->get("{$this->baseUrl}/api/v1/search", $params);
+            $response = Http::timeout($this->timeout)->get("{$this->getBaseUrl()}/api/v1/search", $params);
 
             if ($response->successful()) {
                 $data = $response->json();
@@ -110,7 +141,7 @@ class YouTubeMusicService
         }
 
         try {
-            $response = Http::timeout($this->timeout)->get("{$this->baseUrl}/api/v1/songs/{$videoId}");
+            $response = Http::timeout($this->timeout)->get("{$this->getBaseUrl()}/api/v1/songs/{$videoId}");
             if ($response->successful()) {
                 $data = $response->json();
                 Cache::put($cacheKey, $data, $this->cacheTtl);
@@ -140,7 +171,7 @@ class YouTubeMusicService
         }
 
         try {
-            $response = Http::timeout($this->timeout)->get("{$this->baseUrl}/api/v1/artists/{$channelId}");
+            $response = Http::timeout($this->timeout)->get("{$this->getBaseUrl()}/api/v1/artists/{$channelId}");
             if ($response->successful()) {
                 $data = $response->json();
                 Cache::put($cacheKey, $data, $this->cacheTtl);
@@ -170,7 +201,7 @@ class YouTubeMusicService
         }
 
         try {
-            $response = Http::timeout($this->timeout)->get("{$this->baseUrl}/api/v1/albums/{$browseId}");
+            $response = Http::timeout($this->timeout)->get("{$this->getBaseUrl()}/api/v1/albums/{$browseId}");
             if ($response->successful()) {
                 $data = $response->json();
                 Cache::put($cacheKey, $data, $this->cacheTtl);
@@ -200,7 +231,7 @@ class YouTubeMusicService
         }
 
         try {
-            $response = Http::timeout($this->timeout)->get("{$this->baseUrl}/api/v1/playlists/{$playlistId}", [
+            $response = Http::timeout($this->timeout)->get("{$this->getBaseUrl()}/api/v1/playlists/{$playlistId}", [
                 'limit' => $limit,
             ]);
             if ($response->successful()) {
@@ -234,7 +265,7 @@ class YouTubeMusicService
         try {
             // Stream extraction may take 1-3 seconds, so use a higher timeout
             $timeout = max($this->timeout, 15);
-            $response = Http::timeout($timeout)->get("{$this->baseUrl}/api/v1/stream/{$videoId}");
+            $response = Http::timeout($timeout)->get("{$this->getBaseUrl()}/api/v1/stream/{$videoId}");
             if ($response->successful()) {
                 $data = $response->json();
                 // Cache stream URL for 3 hours (CDN URLs expire in ~6 hours)

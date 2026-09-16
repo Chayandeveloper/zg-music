@@ -33,18 +33,18 @@ class StreamService:
 
         url = f"https://www.youtube.com/watch?v={video_id}"
         ydl_opts = {
-            "format": "bestaudio[ext=m4a]/bestaudio/best",
+            "format": "bestaudio/best/18",
             "quiet": True,
             "no_warnings": True,
             "nocheckcertificate": True,
             "noplaylist": True,
             "skip_download": True,
-            "socket_timeout": 6,
+            "socket_timeout": 12,
             "youtube_include_dash_manifest": False,
             "youtube_include_hls_manifest": False,
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["android", "web", "mweb"]
+                    "player_client": ["android"]
                 }
             },
         }

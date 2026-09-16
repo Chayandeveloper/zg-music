@@ -26,17 +26,23 @@ const getHostAddress = () => {
 const host = getHostAddress();
 
 const getApiBaseUrl = () => {
+  if (process.env.EXPO_PUBLIC_API_BASE_URL) {
+    return process.env.EXPO_PUBLIC_API_BASE_URL;
+  }
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
     return `http://${window.location.hostname}:8001/api/v1`;
   }
-  return process.env.EXPO_PUBLIC_API_BASE_URL || `http://${host}:8001/api/v1`;
+  return `http://${host}:8001/api/v1`;
 };
 
 const getStorageBaseUrl = () => {
+  if (process.env.EXPO_PUBLIC_STORAGE_BASE_URL) {
+    return process.env.EXPO_PUBLIC_STORAGE_BASE_URL;
+  }
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
     return `http://${window.location.hostname}:8001`;
   }
-  return process.env.EXPO_PUBLIC_STORAGE_BASE_URL || `http://${host}:8001`;
+  return `http://${host}:8001`;
 };
 
 export const ENV = {

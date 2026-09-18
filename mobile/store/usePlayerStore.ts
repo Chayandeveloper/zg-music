@@ -101,9 +101,14 @@ interface PlayerState {
   addToRecentlyPlayed: (song: SongItem) => Promise<void>;
   loadRecentlyPlayed: () => Promise<void>;
   syncServerRecentlyPlayed: (serverSongs: SongItem[]) => Promise<void>;
+
+  // Background Stream Prefetching for Instant Playback
+  prefetchSong: (song: SongItem) => void;
+  prefetchNextInQueue: () => void;
 }
 
 let currentPlayToken = 0;
+let isTogglingPlayPause = false;
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentSong: null,
@@ -190,11 +195,38 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         }
       }
 
-      const final = merged.slice(0, 30);
-      set({ recentlyPlayed: final });
-      await AsyncStorage.setItem('@zubeen_recently_played', JSON.stringify(final));
+      const updated = merged.slice(0, 30);
+      set({ recentlyPlayed: updated });
+      await AsyncStorage.setItem('@zubeen_recently_played', JSON.stringify(updated));
     } catch (e) {
       console.warn('Failed to sync server recently played:', e);
+    }
+  },
+
+  prefetchSong: (song: SongItem) => {
+    if (!song || song.stream_url) return;
+    const source = get().resolvePlaybackSource(song);
+    if (source?.type === 'EXTERNAL_STREAM' && source.videoId && !source.streamUrl) {
+      MobileApi.getExternalStream(source.videoId)
+        .then((res) => {
+          if (res?.data?.streamUrl) {
+            song.stream_url = res.data.streamUrl;
+          }
+        })
+        .catch(() => {});
+    }
+  },
+
+  prefetchNextInQueue: () => {
+    const { queue, queueIndex } = get();
+    if (!queue || queue.length === 0) return;
+    for (let i = 1; i <= 3; i++) {
+      const nextSong = queue[queueIndex + i];
+      if (nextSong) {
+        setTimeout(() => {
+          get().prefetchSong(nextSong);
+        }, (i - 1) * 250);
+      }
     }
   },
 
@@ -261,14 +293,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
     const { sound: existingSound, queue: existingQueue } = get();
 
-    // 1. Instantly stop old sound NON-BLOCKING (never await unload on audio thread)
+    // 1. Instantly silence old audio (<5ms) without freezing native thread
     if (existingSound) {
-      existingSound.stopAsync().catch(() => {});
-      existingSound.unloadAsync().catch(() => {});
+      existingSound.pauseAsync().catch(() => {});
+      existingSound.setStatusAsync({ shouldPlay: false, volume: 0 }).catch(() => {});
     }
 
     const activeQueue = newQueue || (existingQueue.length > 0 ? existingQueue : [song]);
-    const activeIndex = activeQueue.findIndex((s) => s.id === song.id);
+    const activeIndex = activeQueue.findIndex(
+      (s) =>
+        (s.id && song.id && String(s.id) === String(song.id)) ||
+        (s.external_id && song.external_id && s.external_id === song.external_id)
+    );
 
     // 2. Increment play token to prevent race conditions when user taps quickly
     const thisPlayToken = ++currentPlayToken;
@@ -338,6 +374,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
       if (currentPlayToken !== thisPlayToken) return;
 
+      // Cleanly unload existing sound before starting new audio playback session
+      if (existingSound) {
+        existingSound.unloadAsync().catch(() => {});
+      }
+
       // Load sound with expo-av
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: audioUri },
@@ -357,7 +398,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           set({
             position: Math.floor(status.positionMillis / 1000),
             duration: Math.floor((status.durationMillis || (song.duration_seconds * 1000)) / 1000),
-            isPlaying: status.isPlaying,
+            isPlaying: isTogglingPlayPause ? get().isPlaying : status.isPlaying,
             buffering: status.isBuffering,
           });
 
@@ -379,6 +420,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       }
 
       set({ sound: newSound, loading: false, isPlaying: true });
+
+      // Automatically prefetch next track in background for instant transition
+      get().prefetchNextInQueue();
 
       // Track qualified playback event asynchronously
       if (typeof song.id === 'number') {
@@ -417,12 +461,26 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
 
-    if (isPlaying) {
-      await sound.pauseAsync();
-      set({ isPlaying: false });
-    } else {
-      await sound.playAsync();
-      set({ isPlaying: true });
+    // 0ms OPTIMISTIC UI FLIP (Instant button response like Spotify)
+    const nextPlayingState = !isPlaying;
+    isTogglingPlayPause = true;
+    set({ isPlaying: nextPlayingState });
+
+    try {
+      if (nextPlayingState) {
+        await sound.playAsync();
+      } else {
+        await sound.pauseAsync();
+      }
+    } catch (err) {
+      console.warn('Playback toggle error, rolling back:', err);
+      // Rollback only on actual native failure
+      set({ isPlaying: isPlaying });
+    } finally {
+      // Delay releasing lock slightly to let audio thread settle
+      setTimeout(() => {
+        isTogglingPlayPause = false;
+      }, 300);
     }
   },
 

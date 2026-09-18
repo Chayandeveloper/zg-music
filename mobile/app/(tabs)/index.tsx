@@ -24,7 +24,7 @@ import { usePlayerStore } from '../../store/usePlayerStore';
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { playSong, recentlyPlayed, syncServerRecentlyPlayed, loadRecentlyPlayed } = usePlayerStore();
+  const { playSong, prefetchSong, recentlyPlayed, syncServerRecentlyPlayed, loadRecentlyPlayed } = usePlayerStore();
   const [feed, setFeed] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingAlbumId, setLoadingAlbumId] = useState<string | null>(null);
@@ -72,6 +72,17 @@ export default function HomeScreen() {
       if (res?.data?.recently_played && Array.isArray(res.data.recently_played)) {
         syncServerRecentlyPlayed(res.data.recently_played);
       }
+      // Background prefetch top songs across all sections for instant playback on tap
+      const toPrefetch: any[] = [];
+      if (Array.isArray(res?.data?.zubeen_top_hits)) toPrefetch.push(...res.data.zubeen_top_hits.slice(0, 5));
+      if (Array.isArray(res?.data?.zubeen_hindi_hits)) toPrefetch.push(...res.data.zubeen_hindi_hits.slice(0, 3));
+      if (Array.isArray(res?.data?.zubeen_bangla_hits)) toPrefetch.push(...res.data.zubeen_bangla_hits.slice(0, 3));
+
+      toPrefetch.forEach((s: any, idx: number) => {
+        setTimeout(() => {
+          prefetchSong(s);
+        }, idx * 150);
+      });
     } catch (err) {
       console.error('Failed to load home feed:', err);
     } finally {
@@ -250,8 +261,8 @@ export default function HomeScreen() {
               </View>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-              {feed.zubeen_top_hits.map((song: any) => (
-                <SongCard key={song.id} song={song} playlistContext={feed.zubeen_top_hits} />
+              {feed.zubeen_top_hits.map((song: any, idx: number) => (
+                <SongCard key={`top-${song.id || song.external_id || song.videoId || idx}`} song={song} playlistContext={feed.zubeen_top_hits} />
               ))}
             </ScrollView>
           </View>
@@ -309,8 +320,8 @@ export default function HomeScreen() {
               </View>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-              {feed.trending.map((song: any) => (
-                <SongCard key={song.id} song={song} playlistContext={feed.trending} />
+              {feed.trending.map((song: any, idx: number) => (
+                <SongCard key={`trending-${song.id || song.external_id || song.videoId || idx}`} song={song} playlistContext={feed.trending} />
               ))}
             </ScrollView>
           </View>
@@ -343,8 +354,8 @@ export default function HomeScreen() {
               </View>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-              {feed.made_for_you.map((song: any) => (
-                <SongCard key={song.id} song={song} playlistContext={feed.made_for_you} />
+              {feed.made_for_you.map((song: any, idx: number) => (
+                <SongCard key={`mfy-${song.id || song.external_id || song.videoId || idx}`} song={song} playlistContext={feed.made_for_you} />
               ))}
             </ScrollView>
           </View>

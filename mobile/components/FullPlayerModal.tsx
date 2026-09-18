@@ -261,7 +261,14 @@ export const FullPlayerModal: React.FC = () => {
               <Text style={styles.seekStepText}>10</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={togglePlayPause} style={styles.mainPlayButton} activeOpacity={0.85}>
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                togglePlayPause();
+              }}
+              style={styles.mainPlayButton}
+              activeOpacity={0.7}
+            >
               {isPlaying ? (
                 <Pause size={30} color={THEME.colors.black} fill={THEME.colors.black} />
               ) : (

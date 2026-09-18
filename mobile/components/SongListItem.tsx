@@ -6,8 +6,23 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
+  Pressable,
+  ActivityIndicator,
 } from 'react-native';
-import { MoreVertical, Heart, ListPlus, Music, User, X } from 'lucide-react-native';
+import {
+  MoreVertical,
+  Heart,
+  Plus,
+  ListPlus,
+  Radio,
+  Share2,
+  Music,
+  Check,
+  Disc,
+  User,
+  X,
+} from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { THEME } from '../constants/theme';
 import { SongItem, usePlayerStore } from '../store/usePlayerStore';
@@ -30,10 +45,15 @@ export const SongListItem: React.FC<SongListItemProps> = ({
   onLikeChange,
 }) => {
   const router = useRouter();
-  const { currentSong, isPlaying, playSong, toggleLikeSong, isSongLiked, openAddToPlaylist } = usePlayerStore();
-  const isCurrent = currentSong?.id === song.id;
+  const { currentSong, isPlaying, loading, playSong, toggleLikeSong, isSongLiked, openAddToPlaylist } = usePlayerStore();
+  const isCurrent = Boolean(
+    currentSong &&
+      ((currentSong.id && song.id && String(currentSong.id) === String(song.id)) ||
+        (currentSong.external_id && song.external_id && currentSong.external_id === song.external_id))
+  );
+  const isThisLoading = isCurrent && loading;
   const likedInStore = isSongLiked(song.id) || (song.external_id ? isSongLiked(song.external_id) : false);
-  const isLiked = isCurrent
+  const isLiked = isCurrent && currentSong
     ? currentSong.is_liked !== undefined
       ? !!currentSong.is_liked
       : likedInStore
@@ -49,11 +69,16 @@ export const SongListItem: React.FC<SongListItemProps> = ({
 
   const effectiveQueue = playlistContext || queue;
 
+  const handleItemPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    playSong(song, effectiveQueue);
+  };
+
   return (
     <>
       <TouchableOpacity
         activeOpacity={0.7}
-        onPress={() => playSong(song, effectiveQueue)}
+        onPress={handleItemPress}
         style={[styles.container, isCurrent && styles.containerActive]}
       >
         {index !== undefined && (
@@ -83,10 +108,14 @@ export const SongListItem: React.FC<SongListItemProps> = ({
           </Text>
         </View>
 
-        <Text style={styles.duration}>
-          {Math.floor(song.duration_seconds / 60)}:
-          {String(song.duration_seconds % 60).padStart(2, '0')}
-        </Text>
+        {isThisLoading ? (
+          <ActivityIndicator size={16} color={THEME.colors.primary} style={{ marginRight: 12 }} />
+        ) : (
+          <Text style={[styles.duration, isCurrent && { color: THEME.colors.primary }]}>
+            {Math.floor(song.duration_seconds / 60)}:
+            {String(song.duration_seconds % 60).padStart(2, '0')}
+          </Text>
+        )}
 
         {/* Quick Like Button */}
         <TouchableOpacity

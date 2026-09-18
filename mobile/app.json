@@ -18,7 +18,8 @@
         "UIBackgroundModes": [
           "audio"
         ]
-      }
+      },
+      "bundleIdentifier": "com.zubeen.player"
     },
     "android": {
       "adaptiveIcon": {

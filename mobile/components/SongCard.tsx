@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { Play } from 'lucide-react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { Play, Pause } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { THEME } from '../constants/theme';
 import { SongItem, usePlayerStore } from '../store/usePlayerStore';
 
@@ -10,15 +11,29 @@ interface SongCardProps {
 }
 
 export const SongCard: React.FC<SongCardProps> = ({ song, playlistContext }) => {
-  const { playSong } = usePlayerStore();
+  const { playSong, currentSong, isPlaying, loading } = usePlayerStore();
+
+  const isCurrent = Boolean(
+    currentSong &&
+      ((currentSong.id && song.id && String(currentSong.id) === String(song.id)) ||
+        (currentSong.external_id && song.external_id && currentSong.external_id === song.external_id))
+  );
+
+  const isThisPlaying = isCurrent && isPlaying;
+  const isThisLoading = isCurrent && loading;
+
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    playSong(song, playlistContext);
+  };
 
   return (
     <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={() => playSong(song, playlistContext)}
+      activeOpacity={0.7}
+      onPress={handlePress}
       style={styles.card}
     >
-      <View style={styles.imageWrapper}>
+      <View style={[styles.imageWrapper, isCurrent && styles.activeImageWrapper]}>
         <Image
           source={{
             uri:
@@ -27,11 +42,17 @@ export const SongCard: React.FC<SongCardProps> = ({ song, playlistContext }) => 
           }}
           style={styles.artwork}
         />
-        <View style={styles.playBadge}>
-          <Play size={14} color={THEME.colors.black} fill={THEME.colors.black} />
+        <View style={[styles.playBadge, isCurrent && styles.activePlayBadge]}>
+          {isThisLoading ? (
+            <ActivityIndicator size={14} color={THEME.colors.black} />
+          ) : isThisPlaying ? (
+            <Pause size={14} color={THEME.colors.black} fill={THEME.colors.black} />
+          ) : (
+            <Play size={14} color={THEME.colors.black} fill={THEME.colors.black} />
+          )}
         </View>
       </View>
-      <Text style={styles.title} numberOfLines={1}>
+      <Text style={[styles.title, isCurrent && { color: THEME.colors.primary }]} numberOfLines={1}>
         {song.title}
       </Text>
       <Text style={styles.artist} numberOfLines={1}>
@@ -54,6 +75,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: THEME.colors.surfaceHover,
   },
+  activeImageWrapper: {
+    borderWidth: 2,
+    borderColor: THEME.colors.primary,
+  },
   artwork: {
     width: '100%',
     height: '100%',
@@ -73,6 +98,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 4,
     elevation: 4,
+  },
+  activePlayBadge: {
+    backgroundColor: THEME.colors.primary,
+    transform: [{ scale: 1.05 }],
   },
   title: {
     fontSize: 14,

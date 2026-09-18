@@ -20,7 +20,7 @@ const getHostAddress = () => {
     return '10.0.2.2';
   }
   
-  return '192.168.1.7';
+  return '192.168.1.6';
 };
 
 const host = getHostAddress();

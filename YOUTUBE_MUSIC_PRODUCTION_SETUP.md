@@ -7,7 +7,8 @@ Follow these exact steps on your live server to set up and run the YouTube Music
 ### Step 1: Install Server Prerequisites
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-pip python3-venv ffmpeg
+# Python, FFmpeg, and Node.js (Node is required for yt-dlp to solve YouTube JS stream challenges)
+sudo apt install -y python3 python3-pip python3-venv ffmpeg nodejs
 ```
 
 ---

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Play, Pause, SkipForward, Heart } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { THEME } from '../constants/theme';
 
@@ -76,9 +77,11 @@ export const MiniPlayer: React.FC = () => {
           <TouchableOpacity
             onPress={(e) => {
               e.stopPropagation();
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
               togglePlayPause();
             }}
             style={styles.playButton}
+            activeOpacity={0.7}
           >
             {isPlaying ? (
               <Pause size={20} color={THEME.colors.black} fill={THEME.colors.black} />

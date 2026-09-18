@@ -21,9 +21,10 @@ class StreamService:
     def __init__(self, cache_ttl_seconds: int = 14400):  # 4 hours TTL (CDN URLs last ~6 hours)
         self.cache_ttl = cache_ttl_seconds
         self._cache: Dict[str, Dict[str, Any]] = {}
-        # Optional path to a Netscape-format cookies file exported from a
-        # browser. Set YTDLP_COOKIES_FILE in .env to enable authenticated
-        # requests (eliminates bot-check errors on restricted content).
+        # OAuth2 token file created by `yt-dlp-youtube-oauth2` plugin.
+        # Run: yt-dlp --username oauth2 --password "" <any-yt-url> once to generate.
+        self.oauth2_token_file: Optional[str] = os.getenv("YTDLP_OAUTH2_TOKEN_FILE") or None
+        # Fallback: Netscape-format cookies file exported from a browser.
         self.cookies_file: Optional[str] = os.getenv("YTDLP_COOKIES_FILE") or None
 
     def get_stream(self, video_id: str) -> Optional[Dict[str, Any]]:
@@ -53,8 +54,15 @@ class StreamService:
             "youtube_include_hls_manifest": False,
         }
 
-        # Attach cookies file when available — eliminates bot-check errors.
-        if self.cookies_file and os.path.isfile(self.cookies_file):
+        # OAuth2 plugin auth (preferred) — install with: pip install yt-dlp-youtube-oauth2
+        # Run once: yt-dlp --username oauth2 --password "" <any-yt-url>  to generate token.
+        if self.oauth2_token_file and os.path.isfile(self.oauth2_token_file):
+            base_opts["username"] = "oauth2"
+            base_opts["password"] = ""
+            base_opts["ap_mso"] = None
+            logger.debug(f"Using OAuth2 token: {self.oauth2_token_file}")
+        # Fallback: cookies file.
+        elif self.cookies_file and os.path.isfile(self.cookies_file):
             base_opts["cookiefile"] = self.cookies_file
             logger.debug(f"Using cookies file: {self.cookies_file}")
 

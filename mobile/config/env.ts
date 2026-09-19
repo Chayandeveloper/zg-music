@@ -15,12 +15,7 @@ const getHostAddress = () => {
     }
   }
 
-  if (Platform.OS === 'android') {
-    // Android emulator loopback
-    return '10.0.2.2';
-  }
-  
-  return '192.168.1.6';
+  return '192.168.1.10';
 };
 
 const host = getHostAddress();

@@ -75,7 +75,7 @@ export const YouTubeAudioPlayer: React.FC = () => {
         playNext();
       }
     } else if (state === 'playing') {
-      // Guard: Do not let late 'playing' events override a user-initiated pause!
+      // Guard: Never let an async 'playing' event cancel the user's pause!
       if (!usePlayerStore.getState().isPlaying) {
         return;
       }
@@ -104,14 +104,12 @@ export const YouTubeAudioPlayer: React.FC = () => {
     <View style={styles.container} pointerEvents="none">
       <YoutubePlayer
         ref={playerRef}
-        height={200}
-        width={200}
+        height={2}
+        width={2}
         play={isPlaying && isYouTube && !!videoId}
         mute={!isPlaying}
         volume={isPlaying ? 100 : 0}
         videoId={activeVideoId}
-        useLocalHTML={true}
-        baseUrlOverride="https://www.youtube.com"
         onChangeState={handleChangeState}
         initialPlayerParams={{
           preventFullScreen: true,
@@ -165,10 +163,10 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 0,
-    right: 0,
-    width: 200,
-    height: 200,
-    opacity: 0.001,
+    left: 0,
+    width: 2,
+    height: 2,
+    opacity: 0.01,
     overflow: 'hidden',
     zIndex: -1,
   },

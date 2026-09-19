@@ -362,43 +362,47 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
 
     try {
-      let audioUri: string | null = null;
-      let videoId: string | null = null;
-
-      if (source.type === 'INTERNAL') {
-        audioUri = source.url;
-      } else if (source.type === 'EXTERNAL_STREAM') {
-        videoId =
+      // 1. External YouTube Song -> Play directly on-device via YouTube engine
+      if (source.type === 'EXTERNAL_STREAM') {
+        const videoId =
           source.videoId ||
           song.external_id ||
           song.playback?.videoId ||
           (typeof song.id === 'string' && !song.id.includes('/') ? String(song.id) : null);
 
-        audioUri = source.streamUrl || song.stream_url || null;
-
-        // If no direct streamUrl yet, fetch it from backend stream endpoint
-        if (!audioUri && videoId) {
-          try {
-            const res = await MobileApi.getExternalStream(videoId);
-            if (res?.data?.streamUrl) {
-              audioUri = res.data.streamUrl;
-              song.stream_url = audioUri;
-            }
-          } catch (fetchErr) {
-            console.warn('[PlayerStore] Direct stream extraction failed, will use fallback:', fetchErr);
+        if (videoId) {
+          if (existingSound) {
+            existingSound.unloadAsync().catch(() => {});
           }
+
+          set({
+            activeEngine: 'youtube',
+            sound: null,
+            loading: false,
+            isPlaying: true,
+            position: 0,
+            duration: song.duration_seconds || 180,
+            currentSong: {
+              ...song,
+              playback: { ...song.playback, videoId },
+            },
+          });
+
+          get().prefetchNextInQueue();
+          return;
         }
       }
 
+      // 2. Internal Catalog Song -> Play via expo-av
+      set({ activeEngine: 'expo' });
+      const audioUri = source.type === 'INTERNAL' ? source.url : (source.streamUrl || '');
+
       if (currentPlayToken !== thisPlayToken) return;
 
-      // 1. If audioUri is resolved, stream via native expo-av (0ms pause, lock-screen background playback)
-      if (audioUri) {
-        set({ activeEngine: 'expo' });
-
-        if (existingSound) {
-          existingSound.unloadAsync().catch(() => { });
-        }
+      // Cleanly unload existing sound before starting new audio playback session
+      if (existingSound) {
+        existingSound.unloadAsync().catch(() => {});
+      }
 
         const { sound: newSound } = await Audio.Sound.createAsync(
           { uri: audioUri },
@@ -449,33 +453,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           }).catch(() => { });
         }
         return;
-      }
-
-      // 2. Fallback: If direct stream extraction is unavailable, play via YouTube on-device iframe
-      if (videoId) {
-        if (existingSound) {
-          existingSound.unloadAsync().catch(() => { });
-        }
-
-        set({
-          activeEngine: 'youtube',
-          sound: null,
-          loading: false,
-          isPlaying: true,
-          position: 0,
-          duration: song.duration_seconds || 180,
-          currentSong: {
-            ...song,
-            playback: { ...song.playback, videoId },
-          },
-        });
-
-        get().prefetchNextInQueue();
-        return;
-      }
-
-      throw new Error(`Unable to resolve stream for ${song.title}`);
-
     } catch (error: any) {
       if (currentPlayToken !== thisPlayToken) return;
       console.error('Failed to load audio sound:', error);

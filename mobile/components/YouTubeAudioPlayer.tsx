@@ -8,6 +8,7 @@ export const YouTubeAudioPlayer: React.FC = () => {
   const {
     currentSong,
     isPlaying,
+    position,
     activeEngine,
     playNext,
     repeatMode,
@@ -31,28 +32,37 @@ export const YouTubeAudioPlayer: React.FC = () => {
     }
   }, [playerRef.current, videoId]);
 
+  const isFetchingRef = useRef(false);
+  const durationFetchedRef = useRef<string | null>(null);
+
   // Periodic progress polling while YouTube audio is active
   useEffect(() => {
     if (!isYouTube || !isPlaying || !videoId) return;
 
     const interval = setInterval(async () => {
-      if (playerRef.current && !isSeeking) {
-        try {
-          const [curr, dur] = await Promise.all([
-            playerRef.current.getCurrentTime(),
-            playerRef.current.getDuration(),
-          ]);
-          if (typeof curr === 'number' && !isNaN(curr) && curr >= 0) {
-            updateProgress(
-              Math.floor(curr),
-              typeof dur === 'number' && dur > 0 ? Math.floor(dur) : undefined
-            );
+      if (!playerRef.current || isSeeking || isFetchingRef.current) return;
+
+      isFetchingRef.current = true;
+      try {
+        // Fetch duration once per videoId
+        if (durationFetchedRef.current !== videoId) {
+          const dur = await playerRef.current.getDuration();
+          if (typeof dur === 'number' && dur > 0) {
+            durationFetchedRef.current = videoId;
+            updateProgress(Math.floor(position), Math.floor(dur));
           }
-        } catch {
-          // Ignore transient poll errors during track changes
         }
+
+        const curr = await playerRef.current.getCurrentTime();
+        if (typeof curr === 'number' && !isNaN(curr) && curr >= 0) {
+          updateProgress(Math.floor(curr));
+        }
+      } catch {
+        // Ignore transient poll errors during track changes
+      } finally {
+        isFetchingRef.current = false;
       }
-    }, 500);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [isYouTube, isPlaying, videoId, isSeeking]);

@@ -128,6 +128,24 @@ export const YouTubeAudioPlayer: React.FC = () => {
                 document.addEventListener('visibilitychange', function(e) {
                   e.stopImmediatePropagation();
                 }, true);
+
+                function handleMsg(e) {
+                  try {
+                    var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+                    if (!data) return;
+                    if (data.eventName === 'pauseVideo') {
+                      if (window.player && window.player.pauseVideo) window.player.pauseVideo();
+                      var v = document.querySelector('video');
+                      if (v) { v.pause(); v.muted = true; }
+                    } else if (data.eventName === 'playVideo') {
+                      if (window.player && window.player.playVideo) window.player.playVideo();
+                      var v = document.querySelector('video');
+                      if (v) { v.muted = false; v.play(); }
+                    }
+                  } catch(err) {}
+                }
+                document.addEventListener('message', handleMsg);
+                window.addEventListener('message', handleMsg);
               } catch (e) {}
             })();
             true;
@@ -145,11 +163,11 @@ export const YouTubeAudioPlayer: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: -9999,
-    left: -9999,
+    bottom: 0,
+    right: 0,
     width: 200,
     height: 200,
-    opacity: 0,
+    opacity: 0.001,
     overflow: 'hidden',
     zIndex: -1,
   },

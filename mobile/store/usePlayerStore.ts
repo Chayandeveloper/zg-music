@@ -38,15 +38,15 @@ export type PlaybackQuality = 'auto' | '64k' | '128k' | '192k' | '320k';
 
 export type PlaybackSource =
   | {
-      type: 'INTERNAL';
-      url: string;
-    }
+    type: 'INTERNAL';
+    url: string;
+  }
   | {
-      type: 'EXTERNAL_STREAM';
-      provider: string;
-      streamUrl?: string;
-      videoId?: string;
-    };
+    type: 'EXTERNAL_STREAM';
+    provider: string;
+    streamUrl?: string;
+    videoId?: string;
+  };
 
 interface PlayerState {
   currentSong: SongItem | null;
@@ -63,7 +63,7 @@ interface PlayerState {
   playbackQuality: PlaybackQuality;
   isFullPlayerVisible: boolean;
   pendingSong: { song: SongItem; queue?: SongItem[] } | null;
-  
+
   // Audio playback object reference
   sound: Audio.Sound | null;
   isSeeking: boolean;
@@ -228,7 +228,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
             song.stream_url = res.data.streamUrl;
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   },
 
@@ -310,8 +310,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
     // 1. Instantly silence old audio (<5ms) without freezing native thread
     if (existingSound) {
-      existingSound.pauseAsync().catch(() => {});
-      existingSound.setStatusAsync({ shouldPlay: false, volume: 0 }).catch(() => {});
+      existingSound.pauseAsync().catch(() => { });
+      existingSound.setStatusAsync({ shouldPlay: false, volume: 0 }).catch(() => { });
     }
 
     const activeQueue = newQueue || (existingQueue.length > 0 ? existingQueue : [song]);
@@ -397,7 +397,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         set({ activeEngine: 'expo' });
 
         if (existingSound) {
-          existingSound.unloadAsync().catch(() => {});
+          existingSound.unloadAsync().catch(() => { });
         }
 
         const { sound: newSound } = await Audio.Sound.createAsync(
@@ -434,7 +434,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         );
 
         if (currentPlayToken !== thisPlayToken) {
-          newSound.unloadAsync().catch(() => {});
+          newSound.unloadAsync().catch(() => { });
           return;
         }
 
@@ -446,7 +446,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
             song_id: song.id,
             duration_played_seconds: 35,
             bitrate_streamed: get().playbackQuality,
-          }).catch(() => {});
+          }).catch(() => { });
         }
         return;
       }
@@ -454,7 +454,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       // 2. Fallback: If direct stream extraction is unavailable, play via YouTube on-device iframe
       if (videoId) {
         if (existingSound) {
-          existingSound.unloadAsync().catch(() => {});
+          existingSound.unloadAsync().catch(() => { });
         }
 
         set({
@@ -819,7 +819,7 @@ registerAuthListener(
     if (sound) {
       try {
         await sound.stopAsync();
-      } catch {}
+      } catch { }
     }
     usePlayerStore.setState({ isPlaying: false, currentSong: null, sound: null, pendingSong: null });
   }

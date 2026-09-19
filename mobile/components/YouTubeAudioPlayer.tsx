@@ -87,9 +87,14 @@ export const YouTubeAudioPlayer: React.FC = () => {
   if (videoId && videoId !== currentVideoIdRef.current) {
     currentVideoIdRef.current = videoId;
   }
-  const activeVideoId = videoId || currentVideoIdRef.current;
+  useEffect(() => {
+    if (!isYouTube) {
+      currentVideoIdRef.current = '';
+    }
+  }, [isYouTube]);
 
-  if (!activeVideoId) return null;
+  const activeVideoId = videoId || currentVideoIdRef.current;
+  if (!isYouTube || !activeVideoId) return null;
 
   return (
     <View style={styles.container} pointerEvents="none">

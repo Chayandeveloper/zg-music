@@ -56,3 +56,9 @@ services/youtube-music/*.pyc
 __pycache__/
 oauth.json
 browser.json
+
+# Backups
+backups/
+*.zip
+*.tar.gz
+*_stream_cache.json

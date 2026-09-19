@@ -362,101 +362,119 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
 
     try {
-      // 1. External YouTube Song -> Play directly on-device via YouTube engine
-      if (source.type === 'EXTERNAL_STREAM') {
-        const videoId =
+      let audioUri: string | null = null;
+      let videoId: string | null = null;
+
+      if (source.type === 'INTERNAL') {
+        audioUri = source.url;
+      } else if (source.type === 'EXTERNAL_STREAM') {
+        videoId =
           source.videoId ||
           song.external_id ||
           song.playback?.videoId ||
           (typeof song.id === 'string' && !song.id.includes('/') ? String(song.id) : null);
 
-        if (videoId) {
-          if (existingSound) {
-            existingSound.unloadAsync().catch(() => {});
+        audioUri = source.streamUrl || song.stream_url || null;
+
+        // If no direct streamUrl yet, fetch it from backend stream endpoint
+        if (!audioUri && videoId) {
+          try {
+            const res = await MobileApi.getExternalStream(videoId);
+            if (res?.data?.streamUrl) {
+              audioUri = res.data.streamUrl;
+              song.stream_url = audioUri;
+            }
+          } catch (fetchErr) {
+            console.warn('[PlayerStore] Direct stream extraction failed, will use fallback:', fetchErr);
           }
-
-          set({
-            activeEngine: 'youtube',
-            sound: null,
-            loading: false,
-            isPlaying: true,
-            position: 0,
-            duration: song.duration_seconds || 180,
-            currentSong: {
-              ...song,
-              playback: { ...song.playback, videoId },
-            },
-          });
-
-          get().prefetchNextInQueue();
-          return;
         }
       }
-
-      // 2. Internal Catalog Song -> Play via expo-av
-      set({ activeEngine: 'expo' });
-      const audioUri = source.type === 'INTERNAL' ? source.url : (source.streamUrl || '');
 
       if (currentPlayToken !== thisPlayToken) return;
 
-      // Cleanly unload existing sound before starting new audio playback session
-      if (existingSound) {
-        existingSound.unloadAsync().catch(() => {});
-      }
+      // 1. If audioUri is resolved, stream via native expo-av (0ms pause, lock-screen background playback)
+      if (audioUri) {
+        set({ activeEngine: 'expo' });
 
-      // Load sound with expo-av
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: audioUri },
-        { shouldPlay: true, progressUpdateIntervalMillis: 500 },
-        (status) => {
-          if (!status.isLoaded) {
-            if (status.error) {
-              console.error('Audio playback error:', status.error);
-            }
-            return;
-          }
-
-          if (get().isSeeking) {
-            return;
-          }
-
-          set({
-            position: Math.floor(status.positionMillis / 1000),
-            duration: Math.floor((status.durationMillis || (song.duration_seconds * 1000)) / 1000),
-            isPlaying: isTogglingPlayPause ? get().isPlaying : status.isPlaying,
-            buffering: status.isBuffering,
-          });
-
-          if (status.didJustFinish) {
-            const { repeatMode } = get();
-            if (repeatMode === 'one') {
-              get().seekTo(0);
-            } else {
-              get().playNext();
-            }
-          }
+        if (existingSound) {
+          existingSound.unloadAsync().catch(() => {});
         }
-      );
 
-      // Verify token again in case another song was clicked during Sound.createAsync
-      if (currentPlayToken !== thisPlayToken) {
-        newSound.unloadAsync().catch(() => {});
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          { uri: audioUri },
+          { shouldPlay: true, progressUpdateIntervalMillis: 500 },
+          (status) => {
+            if (!status.isLoaded) {
+              if (status.error) {
+                console.error('Audio playback error:', status.error);
+              }
+              return;
+            }
+
+            if (get().isSeeking) {
+              return;
+            }
+
+            set({
+              position: Math.floor(status.positionMillis / 1000),
+              duration: Math.floor((status.durationMillis || (song.duration_seconds * 1000)) / 1000),
+              isPlaying: isTogglingPlayPause ? get().isPlaying : status.isPlaying,
+              buffering: status.isBuffering,
+            });
+
+            if (status.didJustFinish) {
+              const { repeatMode } = get();
+              if (repeatMode === 'one') {
+                get().seekTo(0);
+              } else {
+                get().playNext();
+              }
+            }
+          }
+        );
+
+        if (currentPlayToken !== thisPlayToken) {
+          newSound.unloadAsync().catch(() => {});
+          return;
+        }
+
+        set({ sound: newSound, loading: false, isPlaying: true });
+        get().prefetchNextInQueue();
+
+        if (typeof song.id === 'number') {
+          MobileApi.trackEvent({
+            song_id: song.id,
+            duration_played_seconds: 35,
+            bitrate_streamed: get().playbackQuality,
+          }).catch(() => {});
+        }
         return;
       }
 
-      set({ sound: newSound, loading: false, isPlaying: true });
+      // 2. Fallback: If direct stream extraction is unavailable, play via YouTube on-device iframe
+      if (videoId) {
+        if (existingSound) {
+          existingSound.unloadAsync().catch(() => {});
+        }
 
-      // Automatically prefetch next track in background for instant transition
-      get().prefetchNextInQueue();
+        set({
+          activeEngine: 'youtube',
+          sound: null,
+          loading: false,
+          isPlaying: true,
+          position: 0,
+          duration: song.duration_seconds || 180,
+          currentSong: {
+            ...song,
+            playback: { ...song.playback, videoId },
+          },
+        });
 
-      // Track qualified playback event asynchronously
-      if (typeof song.id === 'number') {
-        MobileApi.trackEvent({
-          song_id: song.id,
-          duration_played_seconds: 35,
-          bitrate_streamed: get().playbackQuality,
-        }).catch(() => {});
+        get().prefetchNextInQueue();
+        return;
       }
+
+      throw new Error(`Unable to resolve stream for ${song.title}`);
 
     } catch (error: any) {
       if (currentPlayToken !== thisPlayToken) return;
@@ -478,15 +496,24 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
 
-    const { sound, isPlaying, currentSong, activeEngine } = get();
+    const { sound, isPlaying, currentSong, activeEngine, youtubePlayerRef } = get();
 
     // 0ms OPTIMISTIC UI FLIP (Instant button response like Spotify)
     const nextPlayingState = !isPlaying;
     isTogglingPlayPause = true;
     set({ isPlaying: nextPlayingState });
 
-    // When active engine is YouTube, the playback state is reactive via play prop
+    // When active engine is YouTube, explicitly trigger play/pause via player ref
     if (activeEngine === 'youtube') {
+      try {
+        if (nextPlayingState) {
+          youtubePlayerRef?.playVideo?.();
+        } else {
+          youtubePlayerRef?.pauseVideo?.();
+        }
+      } catch (err) {
+        console.warn('YouTube toggle error:', err);
+      }
       setTimeout(() => {
         isTogglingPlayPause = false;
       }, 300);

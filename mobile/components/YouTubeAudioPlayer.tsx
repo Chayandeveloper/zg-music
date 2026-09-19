@@ -83,7 +83,13 @@ export const YouTubeAudioPlayer: React.FC = () => {
     }
   };
 
-  if (!videoId) return null;
+  const currentVideoIdRef = useRef<string>('');
+  if (videoId && videoId !== currentVideoIdRef.current) {
+    currentVideoIdRef.current = videoId;
+  }
+  const activeVideoId = videoId || currentVideoIdRef.current;
+
+  if (!activeVideoId) return null;
 
   return (
     <View style={styles.container} pointerEvents="none">
@@ -91,8 +97,8 @@ export const YouTubeAudioPlayer: React.FC = () => {
         ref={playerRef}
         height={2}
         width={2}
-        play={isPlaying && isYouTube}
-        videoId={videoId}
+        play={isPlaying && isYouTube && !!videoId}
+        videoId={activeVideoId}
         onChangeState={handleChangeState}
         initialPlayerParams={{
           preventFullScreen: true,
@@ -103,6 +109,18 @@ export const YouTubeAudioPlayer: React.FC = () => {
           allowsInlineMediaPlayback: true,
           mediaPlaybackRequiresUserAction: false,
           androidLayerType: 'hardware',
+          injectedJavaScript: `
+            (function() {
+              try {
+                Object.defineProperty(document, 'hidden', { value: false, writable: false });
+                Object.defineProperty(document, 'visibilityState', { value: 'visible', writable: false });
+                document.addEventListener('visibilitychange', function(e) {
+                  e.stopImmediatePropagation();
+                }, true);
+              } catch (e) {}
+            })();
+            true;
+          `,
         }}
         onError={(e) => {
           console.warn('[YouTubeAudioPlayer] Playback error:', e);

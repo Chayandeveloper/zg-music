@@ -75,6 +75,10 @@ export const YouTubeAudioPlayer: React.FC = () => {
         playNext();
       }
     } else if (state === 'playing') {
+      // Guard: Do not let late 'playing' events override a user-initiated pause!
+      if (!usePlayerStore.getState().isPlaying) {
+        return;
+      }
       usePlayerStore.setState({ isPlaying: true, loading: false, buffering: false });
     } else if (state === 'buffering') {
       usePlayerStore.setState({ buffering: true });
@@ -100,9 +104,11 @@ export const YouTubeAudioPlayer: React.FC = () => {
     <View style={styles.container} pointerEvents="none">
       <YoutubePlayer
         ref={playerRef}
-        height={2}
-        width={2}
+        height={200}
+        width={200}
         play={isPlaying && isYouTube && !!videoId}
+        mute={!isPlaying}
+        volume={isPlaying ? 100 : 0}
         videoId={activeVideoId}
         onChangeState={handleChangeState}
         initialPlayerParams={{
@@ -139,11 +145,11 @@ export const YouTubeAudioPlayer: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    width: 2,
-    height: 2,
-    opacity: 0.01,
+    top: -9999,
+    left: -9999,
+    width: 200,
+    height: 200,
+    opacity: 0,
     overflow: 'hidden',
     zIndex: -1,
   },

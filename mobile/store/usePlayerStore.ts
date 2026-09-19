@@ -503,17 +503,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     isTogglingPlayPause = true;
     set({ isPlaying: nextPlayingState });
 
-    // When active engine is YouTube, explicitly trigger play/pause via player ref
+    // When active engine is YouTube, the playback state is reactive via play prop (with instant mute on pause)
     if (activeEngine === 'youtube') {
-      try {
-        if (nextPlayingState) {
-          youtubePlayerRef?.playVideo?.();
-        } else {
-          youtubePlayerRef?.pauseVideo?.();
-        }
-      } catch (err) {
-        console.warn('YouTube toggle error:', err);
-      }
       setTimeout(() => {
         isTogglingPlayPause = false;
       }, 300);

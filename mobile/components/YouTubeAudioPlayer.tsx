@@ -110,6 +110,7 @@ export const YouTubeAudioPlayer: React.FC = () => {
         mute={!isPlaying}
         volume={isPlaying ? 100 : 0}
         videoId={activeVideoId}
+        useLocalHTML={true}
         onChangeState={handleChangeState}
         initialPlayerParams={{
           preventFullScreen: true,

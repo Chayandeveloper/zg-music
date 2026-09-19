@@ -23,7 +23,22 @@ class StreamService:
     def __init__(self, cache_ttl_seconds: int = 18000):  # 5 hours TTL (YouTube CDN URLs typically valid ~6 hours)
         self.cache_ttl = cache_ttl_seconds
         self._cache: Dict[str, Dict[str, Any]] = {}
-        self.cookies_file: Optional[str] = settings.YTDLP_COOKIES_FILE or None
+        # Automatic candidate search for cookies.txt
+        candidate_cookies = [
+            settings.YTDLP_COOKIES_FILE,
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "cookies.txt")),
+            os.path.abspath("cookies.txt"),
+            "/var/www/fillosoft.com/jubeefy/backend/services/youtube-music/cookies.txt",
+        ]
+        self.cookies_file: Optional[str] = None
+        for path in candidate_cookies:
+            if path and os.path.isfile(path):
+                self.cookies_file = path
+                logger.info(f"StreamService initialized with cookies file: {path}")
+                break
+        if not self.cookies_file:
+            logger.warning("StreamService initialized WITHOUT cookies file (not found in candidates)")
+
         self._cache_file = os.path.join(os.path.dirname(__file__), "..", "..", "_stream_cache.json")
         self._load_disk_cache()
 
@@ -82,7 +97,7 @@ class StreamService:
 
         if self.cookies_file and os.path.isfile(self.cookies_file):
             base_opts["cookiefile"] = self.cookies_file
-            logger.debug(f"Using cookies file: {self.cookies_file}")
+            logger.info(f"Using cookies file: {self.cookies_file}")
 
         # If OAuth2 plugin is installed and enabled, use it
         if getattr(settings, "YTDLP_USE_OAUTH2", False):

@@ -111,6 +111,7 @@ export const YouTubeAudioPlayer: React.FC = () => {
         volume={isPlaying ? 100 : 0}
         videoId={activeVideoId}
         useLocalHTML={true}
+        baseUrlOverride="https://www.youtube.com"
         onChangeState={handleChangeState}
         initialPlayerParams={{
           preventFullScreen: true,
@@ -154,7 +155,6 @@ export const YouTubeAudioPlayer: React.FC = () => {
         }}
         onError={(e) => {
           console.warn('[YouTubeAudioPlayer] Playback error:', e);
-          usePlayerStore.setState({ loading: false, isPlaying: false });
         }}
       />
     </View>

@@ -67,8 +67,12 @@ interface PlayerState {
   // Audio playback object reference
   sound: Audio.Sound | null;
   isSeeking: boolean;
+  activeEngine: 'expo' | 'youtube';
+  youtubePlayerRef: any | null;
 
   // Actions
+  setYoutubePlayerRef: (ref: any) => void;
+  updateProgress: (position: number, duration?: number) => void;
   resolvePlaybackSource: (song: SongItem) => PlaybackSource | null;
   playSong: (song: SongItem, newQueue?: SongItem[]) => Promise<void>;
   clearPendingSong: () => void;
@@ -128,6 +132,17 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   songForPlaylist: null,
   sound: null,
   isSeeking: false,
+  activeEngine: 'expo',
+  youtubePlayerRef: null,
+
+  setYoutubePlayerRef: (ref) => set({ youtubePlayerRef: ref }),
+  updateProgress: (position, duration) => {
+    if (get().isSeeking) return;
+    set((state) => ({
+      position,
+      duration: duration !== undefined && duration > 0 ? duration : state.duration,
+    }));
+  },
 
   clearPendingSong: () => set({ pendingSong: null }),
 
@@ -347,30 +362,40 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
 
     try {
-      let audioUri: string;
-
+      // 1. External YouTube Song -> Play directly on-device via YouTube engine
       if (source.type === 'EXTERNAL_STREAM') {
-        if (source.streamUrl) {
-          audioUri = source.streamUrl;
-        } else if (source.videoId) {
-          // Extract live stream URL from microservice
-          const streamRes = await MobileApi.getExternalStream(source.videoId);
-          // If user clicked another song while network call was in flight, cancel this one!
-          if (currentPlayToken !== thisPlayToken) return;
+        const videoId =
+          source.videoId ||
+          song.external_id ||
+          song.playback?.videoId ||
+          (typeof song.id === 'string' && !song.id.includes('/') ? String(song.id) : null);
 
-          if (streamRes?.data?.streamUrl) {
-            audioUri = streamRes.data.streamUrl;
-            // Cache resolved stream URL in song object
-            song.stream_url = audioUri;
-          } else {
-            throw new Error('Audio stream URL could not be resolved for this track.');
+        if (videoId) {
+          if (existingSound) {
+            existingSound.unloadAsync().catch(() => {});
           }
-        } else {
-          throw new Error('Missing stream URL or video ID for external track.');
+
+          set({
+            activeEngine: 'youtube',
+            sound: null,
+            loading: false,
+            isPlaying: true,
+            position: 0,
+            duration: song.duration_seconds || 180,
+            currentSong: {
+              ...song,
+              playback: { ...song.playback, videoId },
+            },
+          });
+
+          get().prefetchNextInQueue();
+          return;
         }
-      } else {
-        audioUri = source.url;
       }
+
+      // 2. Internal Catalog Song -> Play via expo-av
+      set({ activeEngine: 'expo' });
+      const audioUri = source.type === 'INTERNAL' ? source.url : (source.streamUrl || '');
 
       if (currentPlayToken !== thisPlayToken) return;
 
@@ -453,18 +478,27 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
 
-    const { sound, isPlaying, currentSong } = get();
+    const { sound, isPlaying, currentSong, activeEngine } = get();
+
+    // 0ms OPTIMISTIC UI FLIP (Instant button response like Spotify)
+    const nextPlayingState = !isPlaying;
+    isTogglingPlayPause = true;
+    set({ isPlaying: nextPlayingState });
+
+    // When active engine is YouTube, the playback state is reactive via play prop
+    if (activeEngine === 'youtube') {
+      setTimeout(() => {
+        isTogglingPlayPause = false;
+      }, 300);
+      return;
+    }
+
     if (!sound) {
       if (currentSong) {
         await get().playSong(currentSong);
       }
       return;
     }
-
-    // 0ms OPTIMISTIC UI FLIP (Instant button response like Spotify)
-    const nextPlayingState = !isPlaying;
-    isTogglingPlayPause = true;
-    set({ isPlaying: nextPlayingState });
 
     try {
       if (nextPlayingState) {
@@ -488,7 +522,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const clamped = Math.max(0, Math.round(positionSeconds));
     set({ isSeeking: true, position: clamped });
 
-    const { sound } = get();
+    const { sound, activeEngine, youtubePlayerRef } = get();
+
+    if (activeEngine === 'youtube') {
+      try {
+        youtubePlayerRef?.seekTo?.(clamped, true);
+      } catch (e) {
+        console.warn('YouTube seek error:', e);
+      }
+      setTimeout(() => {
+        set({ isSeeking: false });
+      }, 400);
+      return;
+    }
+
     if (sound) {
       try {
         const status = await sound.getStatusAsync();

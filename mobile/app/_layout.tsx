@@ -7,6 +7,7 @@ import { MiniPlayer } from '../components/MiniPlayer';
 import { FullPlayerModal } from '../components/FullPlayerModal';
 import { AuthModal } from '../components/AuthModal';
 import { AddToPlaylistModal } from '../components/AddToPlaylistModal';
+import { YouTubeAudioPlayer } from '../components/YouTubeAudioPlayer';
 import { Audio } from 'expo-av';
 import { useAuthStore } from '../store/useAuthStore';
 import { usePlayerStore } from '../store/usePlayerStore';
@@ -46,6 +47,7 @@ export default function RootLayout() {
       {/* Persistent Global Mini Player, Full Player Sheet, Auth Modal & Playlist Modal */}
       <MiniPlayer />
       <FullPlayerModal />
+      <YouTubeAudioPlayer />
       <AuthModal
         visible={isAuthModalOpen}
         onClose={closeAuthModal}

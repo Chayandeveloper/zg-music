@@ -16,8 +16,9 @@ class StreamService:
     Maintains an in-memory cache with expiration to avoid repeated extractions.
     """
 
-    # Fast modern player clients tried in order: android is fastest (~1.5s), ios and web as fallbacks
-    _FAST_CLIENTS = ["android", "ios", "web"]
+    # Modern player clients tried in order: tv_embedded & ios bypass datacenter bot-checks, android and web as fallbacks
+    _FAST_CLIENTS = ["tv_embedded", "ios", "android", "web"]
+    _FALLBACK_CLIENTS = ["tv_embedded", "ios", "android", "web", "mweb", "tv"]
 
     def __init__(self, cache_ttl_seconds: int = 18000):  # 5 hours TTL (YouTube CDN URLs typically valid ~6 hours)
         self.cache_ttl = cache_ttl_seconds
@@ -74,9 +75,7 @@ class StreamService:
             "nocheckcertificate": True,
             "noplaylist": True,
             "skip_download": True,
-            "socket_timeout": 10,
-            # Node.js runtime solves YouTube's JS challenges automatically
-            "js_runtimes": {"node": {}},
+            "socket_timeout": 12,
             # Select best audio-only stream (m4a preferred, fallback to any audio, then best overall)
             "format": "bestaudio[ext=m4a]/bestaudio/best",
         }
@@ -85,12 +84,23 @@ class StreamService:
             base_opts["cookiefile"] = self.cookies_file
             logger.debug(f"Using cookies file: {self.cookies_file}")
 
-        # Try 1: Super-fast Android client (~1.5s extraction without heavy webpage parsing)
+        # If OAuth2 plugin is installed and enabled, use it
+        if getattr(settings, "YTDLP_USE_OAUTH2", False):
+            try:
+                import yt_dlp_plugins.extractor.youtube_oauth2  # type: ignore
+                base_opts["username"] = "oauth2"
+                base_opts["password"] = ""
+                logger.debug("Using YouTube OAuth2 plugin")
+            except ImportError:
+                pass
+
+        # Try 1: Fast TV-embedded client (bypasses bot-checks on datacenter / cloud VPS IPs)
         fast_opts = {
             **base_opts,
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["android"],
+                    "player_client": ["tv_embedded"],
+                    "player_skip": ["webpage", "configs"],
                 }
             },
         }
@@ -113,17 +123,17 @@ class StreamService:
                         "thumbnail": info.get("thumbnail"),
                         "format_id": info.get("format_id"),
                         "abr": info.get("abr"),
-                        "player_client": "android",
+                        "player_client": "tv_embedded",
                     }
                     self._cache[video_id] = {
                         "_cached_at": time.time(),
                         "data": data,
                     }
                     self._save_disk_cache()
-                    logger.info(f"[Stream Extracted FAST] {video_id} via android client")
+                    logger.info(f"[Stream Extracted FAST] {video_id} via tv_embedded client")
                     return data
         except Exception as e:
-            logger.debug(f"[{video_id}] Fast android client missed ({e}), falling back...")
+            logger.debug(f"[{video_id}] Fast tv_embedded client missed ({e}), falling back...")
 
         # Try 2: Default yt-dlp multi-client extraction (visionos / web with node challenge solver)
         try:
@@ -165,6 +175,7 @@ class StreamService:
                 "extractor_args": {
                     "youtube": {
                         "player_client": [client],
+                        "player_skip": ["webpage", "configs"] if client != "web" else [],
                     }
                 },
             }
